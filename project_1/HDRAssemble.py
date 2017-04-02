@@ -3,6 +3,7 @@ import random
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+from MTBAlignment import MTBAlignment
 
 Z_min = 0
 Z_max = 255
@@ -45,56 +46,51 @@ def gSolve(Z, B, l):
     logE = X[bin:]
     return g, logE
 
-def Radiance_Map(images, shape, l):
+def Radiance_Map(images, d_ts, shape, l):
     assert len(shape) == 2
     num_img = len(images)
     cand_list = [row*shape[1]+col for row in range(100, shape[0]-100) for col in range(50, shape[1]-50)]
     sample_idxs = random.sample(cand_list, 2*(bin//(num_img-1)+1))
     Z = np.empty((len(sample_idxs), 0), dtype='uint8')
     B = np.zeros(num_img, dtype='float')
-    for i, (image, d_t) in enumerate(images):
+    for i, (image, d_t) in enumerate(zip(images, d_ts)):
         sample_pixs = image.reshape((-1, 1))[sample_idxs]
         Z = np.concatenate((Z, sample_pixs), axis=1)
-        B[i] = d_t
+        B[i] = np.log(d_t)
     g, logE = gSolve(Z, B, l)
     return g, logE
 
 def Load_Data(dir):
     speed_file = open(os.path.join(dir, "shutter_speed.txt"))
-    d_time = {}
+    d_t_dict = {}
     for line in speed_file:
         tokens = line.split('\t')
-        d_time[tokens[0]] = 1/float(tokens[1])
-    images_r = []
-    images_g = []
-    images_b = []
-    shape = None
+        d_t_dict[tokens[0]] = 1/float(tokens[1])
+    images = []
+    d_ts = []
     for file in os.listdir(dir):
         if file.endswith(".png"):
-            d_t = d_time[file]
+            d_t = d_t_dict[file]
             img = cv2.imread(os.path.join(dir, file))
-            b, g, r = img[:, :, 0], img[:, :, 1], img[:, :, 2]
             print("load image "+file+' - d_t:', d_t)
-            images_b.append((b, np.log(d_t)))
-            images_g.append((g, np.log(d_t)))
-            images_r.append((r, np.log(d_t)))
-            assert b.shape == g.shape and g.shape == r.shape
-            if not shape == None:
-                assert b.shape == shape
-            else:
-                shape = b.shape
-    return images_b, images_g, images_r, shape
+            images.append(img)
+            d_ts.append(d_t)
+    return images, d_ts
 
 
 
 if __name__ == "__main__":
     plt.ion()
-    images_b, images_g, images_r, shape = Load_Data("../Memorial_SourceImages")
-    g, logE = Radiance_Map(images_b, shape, 20.)
+    images, d_ts = Load_Data("../Memorial_SourceImages")
+    images_align = MTBAlignment(images, shift_range=20)
+    images_b_align = [img[:, :, 0] for img in images_align]
+    images_g_align = [img[:, :, 1] for img in images_align]
+    images_r_align = [img[:, :, 2] for img in images_align]
+    g, logE = Radiance_Map(images_b_align, d_ts, images_b_align[0].shape, l=20.)
     print(g, logE)
     plt.plot(g.reshape(-1), range(g.shape[0]), 'r-')
     #plt.show()
     plt.draw()
-    plt.pause(0.001)
+    plt.pause(10)
     #g, logE = Radiance_Map(images_b, shape, 0.5))
     #g, logE = Radiance_Map(images_b, shape, 0.5))
