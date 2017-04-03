@@ -15,6 +15,8 @@ def computBitmap(img):
     return tb, eb
 
 def getExpShift(img_base, img_align, shift_bits):
+    assert len(img_base.shape) == 2
+    assert img_base.shape == img_align.shape
     rows = img_base.shape[0]
     cols = img_base.shape[1]
     ## recursive call to get shift dx, dy ##
@@ -71,19 +73,24 @@ def getExpShift(img_base, img_align, shift_bits):
 
 def MTBAlignment(imgs, shift_range):
     levels = np.floor(np.log2(shift_range))
-    rows = imgs[0].shape[0]
-    cols = imgs[0].shape[1]
+    num_img = imgs.shape[0]
+    H = imgs.shape[1]
+    W = imgs.shape[2]
     imgs_align = [imgs[0]]
+    imgs_align_gray = [cv2.cvtColor(imgs[0], cv2.COLOR_BGR2GRAY)]
     pre_shift_ret = np.array([0, 0], dtype='float32')
-    for i in range(1, len(imgs)):
-        shift_ret = getExpShift(imgs[i-1], imgs[i], levels)
+    for i in range(1, num_img):
+        cur_gray = cv2.cvtColor(imgs[i], cv2.COLOR_BGR2GRAY)
+        shift_ret = getExpShift(imgs_align_gray[i-1], cur_gray, levels)
         transform_m = M.copy()
         transform_m[:, 2] = shift_ret + pre_shift_ret
-        img_align = cv2.warpAffine(imgs[i], transform_m, (cols, rows))
+        img_align = cv2.warpAffine(imgs[i], transform_m, (W, H))
+        cur_gray_align = cv2.warpAffine(cur_gray, transform_m, (W, H))
         print("img"+str(i)+" shift_ret:", transform_m[:, 2])
         imgs_align.append(img_align)
+        imgs_align_gray.append(cur_gray)
         pre_shift_ret = shift_ret
-    return imgs_align
+    return np.array(imgs_align)
 
 def RandomShift(img):
     rows = img.shape[0]
@@ -114,13 +121,12 @@ if __name__ == "__main__":
         cv2.destroyAllWindows()
     """
     imgs = []
-    for file in os.listdir("./test/images/1"):
-        if file.endswith(".JPG"):
-            img = cv2.imread(os.path.join("./test/images/1", file))
-            print("load", os.path.join("./test/images/1", file))
-            img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            imgs.append(img_gray)
-    imgs_align = MTBAlignment(imgs, 10)
+    for file in os.listdir("./Memorial_SourceImages/"):
+        if file.endswith(".png"):
+            img = cv2.imread(os.path.join("./Memorial_SourceImages", file))
+            print("load", os.path.join("./Memorial_SourceImages", file))
+            imgs.append(img)
+    imgs_align = MTBAlignment(np.array(imgs), 10)
     cv2.imshow('base img', imgs_align[0])
     cv2.imshow('align img', imgs_align[1])
     key  = cv2.waitKey(0) & 0xFF

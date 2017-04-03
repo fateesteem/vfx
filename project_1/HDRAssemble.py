@@ -17,7 +17,7 @@ def Weight_func():
             weights.append(i - Z_min)
         else:
             weights.append(Z_max - i)
-    return weights
+    return np.array(weights)
 
 def gSolve(Z, B, l):
     assert Z.shape[1] == B.shape[0]
@@ -41,26 +41,38 @@ def gSolve(Z, B, l):
         A[row, i+1] = -2*l*w[i+1]
         A[row, i+2] = l*w[i+1]
         row += 1
-    X = np.matmul(np.linalg.pinv(A), b)
+    X = np.matmul(np.linalg.pinv(A), b).reshape(-1)
     g = X[:bin]
     logE = X[bin:]
     return g, logE
 
-def Radiance_Map(images, d_ts, shape, l):
-    assert len(shape) == 2
-    num_img = len(images)
-    cand_list = [row*shape[1]+col for row in range(100, shape[0]-100) for col in range(50, shape[1]-50)]
-    sample_idxs = random.sample(cand_list, 2*(bin//(num_img-1)+1))
-    Z = np.empty((len(sample_idxs), 0), dtype='uint8')
-    B = np.zeros(num_img, dtype='float')
-    for i, (image, d_t) in enumerate(zip(images, d_ts)):
-        sample_pixs = image.reshape((-1, 1))[sample_idxs]
-        Z = np.concatenate((Z, sample_pixs), axis=1)
-        B[i] = np.log(d_t)
+def getResponseCurve(images, d_ts, l, sample_skip=50):
+    num_img = images.shape[0]
+    H = images.shape[1]
+    W = images.shape[2]
+    num_samples = 2 * (bin // (num_img-1) + 1)
+    cand_list = [row*W+col for row in range(sample_skip, H-sample_skip) for col in range(sample_skip, W-sample_skip)]
+    sample_idxs = random.sample(cand_list, num_samples)
+    Z = (images.reshape(num_img, -1)[:, sample_idxs]).transpose()
+    B = np.log(d_ts)
     g, logE = gSolve(Z, B, l)
     return g, logE
 
-def Load_Data(dir):
+def Radiance_Map(images, d_ts, l):
+    assert len(images.shape) == 3
+    plt.ion()
+    w = Weight_func() + 1e-10
+    g_func, _ = getResponseCurve(images, d_ts, l=l, sample_skip=100)
+    plt.plot(g_func, range(g_func.shape[0]), 'r-')
+    plt.draw()
+    plt.pause(5)
+    rad_tot = np.sum(w[images]*(g_func[images] - np.log(d_ts[:, np.newaxis, np.newaxis])), axis=0)
+    weight_tot = np.sum(w[images], axis=0)
+
+    return np.exp(rad_tot / weight_tot), g_func
+
+
+def Load_Data_test(dir):
     speed_file = open(os.path.join(dir, "shutter_speed.txt"))
     d_t_dict = {}
     for line in speed_file:
@@ -75,22 +87,31 @@ def Load_Data(dir):
             print("load image "+file+' - d_t:', d_t)
             images.append(img)
             d_ts.append(d_t)
-    return images, d_ts
+    return np.array(images), np.array(d_ts)
 
-
+def Load_Data(imgs_dir, speed_file):
+    speed = open(speed_file)
+    d_t_map = []
+    for line in speed:
+        tokens = line.split('\t')
+        d_t_map[int(tokens[0])-1] = float(tokens[1])
+    images = []
+    d_ts = []
+    for file in os.listdir(dir):
+        d_t = d_t_map[int(file[:-4])-1]
+        img = cv2.imread(os.path.join(dir, file))
+        print("load image "+file+' - d_t:', d_t)
+        images.append(img)
+        d_ts.append(d_t)
+    return np.array(images), np.array(d_ts)
 
 if __name__ == "__main__":
-    plt.ion()
-    images, d_ts = Load_Data("../Memorial_SourceImages")
+    images, d_ts = Load_Data_test("./Memorial_SourceImages")
     images_align = MTBAlignment(images, shift_range=20)
-    images_b_align = [img[:, :, 0] for img in images_align]
-    images_g_align = [img[:, :, 1] for img in images_align]
-    images_r_align = [img[:, :, 2] for img in images_align]
-    g, logE = Radiance_Map(images_b_align, d_ts, images_b_align[0].shape, l=20.)
-    print(g, logE)
-    plt.plot(g.reshape(-1), range(g.shape[0]), 'r-')
-    #plt.show()
-    plt.draw()
-    plt.pause(10)
+    imgs_b_align = images[:, :, :, 0]
+    imgs_g_align = images[:, :, :, 1]
+    imgs_r_align = images[:, :, :, 2]
+    img_rad, _ = Radiance_Map(imgs_b_align, d_ts, l=20.)
+    print(img_rad.shape)
     #g, logE = Radiance_Map(images_b, shape, 0.5))
     #g, logE = Radiance_Map(images_b, shape, 0.5))
