@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from MTBAlignment import MTBAlignment
+from Rad2RGBE import Rad2RGBE
 
 Z_min = 0
 Z_max = 255
@@ -17,28 +18,29 @@ def Weight_func():
             weights.append(i - Z_min)
         else:
             weights.append(Z_max - i)
-    return np.array(weights)
+    return np.array(weights, dtype='float')
 
 def gSolve(Z, B, l):
     assert Z.shape[1] == B.shape[0]
     w = Weight_func()
-    A = np.zeros((Z.shape[0]*Z.shape[1]+(bin)+1, bin+Z.shape[0]), dtype='float')
+    A = np.zeros((Z.shape[0]*Z.shape[1]+(bin-2)+1, bin+Z.shape[0]), dtype='float')
     b = np.zeros((A.shape[0], 1), dtype='float')
     row = 0
     for n in range(Z.shape[0]):
         for p in range(Z.shape[1]):
             w_np = w[Z[n, p]]
             A[row, Z[n, p]] = w_np
-            A[row, bin+n] = -1*w_np
+            A[row, bin+n] = -1.*w_np
             b[row, 0] = w_np*B[p]
             row += 1
 
-    A[row, 129] = 1.
+    #A[row, 127] = 1.
+    A[row, 127] = w[127]
     row += 1
 
     for i in range(bin-2):
         A[row, i] = l*w[i+1]
-        A[row, i+1] = -2*l*w[i+1]
+        A[row, i+1] = -2.*l*w[i+1]
         A[row, i+2] = l*w[i+1]
         row += 1
     X = np.matmul(np.linalg.pinv(A), b).reshape(-1)
@@ -71,8 +73,18 @@ def Radiance_Map(images, d_ts, l):
 
     return np.exp(rad_tot / weight_tot), g_func
 
+def SaveRad(img_rad, filename):
+    assert img_rad.shape[2] == 3
+    H = img_rad.shape[0]
+    W = img_rad.shape[1]
+    file = open(filename, "wb")
+    file.write("#?RADIANCE\n# Made with Python & Numpy\nFORMAT=32-bit_rle_rgbe\n\n".encode('utf-8'))
+    file.write("-Y {0} +X {1}\n".format(H, W).encode('utf-8'))
+    img_rgbe = Rad2RGBE(img_rad)
+    img_rgbe.flatten().tofile(file)
+    file.close()
 
-def Load_Data_test(dir):
+def Load_Data_test(dir, img_type):
     speed_file = open(os.path.join(dir, "shutter_speed.txt"))
     d_t_dict = {}
     for line in speed_file:
@@ -81,7 +93,7 @@ def Load_Data_test(dir):
     images = []
     d_ts = []
     for file in os.listdir(dir):
-        if file.endswith(".png"):
+        if file.endswith(img_type):
             d_t = d_t_dict[file]
             img = cv2.imread(os.path.join(dir, file))
             print("load image "+file+' - d_t:', d_t)
@@ -89,29 +101,32 @@ def Load_Data_test(dir):
             d_ts.append(d_t)
     return np.array(images), np.array(d_ts)
 
-def Load_Data(imgs_dir, speed_file):
+def Load_Data(imgs_dir, speed_file, img_type):
     speed = open(speed_file)
-    d_t_map = []
+    d_t_map = {}
     for line in speed:
         tokens = line.split('\t')
-        d_t_map[int(tokens[0])-1] = float(tokens[1])
+        fractions = tokens[1][:-1].split('/')
+        assert len(fractions) <= 2
+        d_t_map[tokens[0]] = float(fractions[0]) / float(fractions[1]) if len(fractions) == 2 else float(fractions[0])
     images = []
     d_ts = []
-    for file in os.listdir(dir):
-        d_t = d_t_map[int(file[:-4])-1]
-        img = cv2.imread(os.path.join(dir, file))
-        print("load image "+file+' - d_t:', d_t)
-        images.append(img)
-        d_ts.append(d_t)
+    for file in os.listdir(imgs_dir):
+        if file.endswith(img_type):
+            d_t = d_t_map[file[:-4]]
+            img = cv2.imread(os.path.join(imgs_dir, file))
+            print("load image "+file+' - d_t:', d_t)
+            images.append(img)
+            d_ts.append(d_t)
     return np.array(images), np.array(d_ts)
 
 if __name__ == "__main__":
-    images, d_ts = Load_Data_test("./Memorial_SourceImages")
+    images, d_ts = Load_Data_test("./Memorial_SourceImages", ".png")
     images_align = MTBAlignment(images, shift_range=20)
-    imgs_b_align = images[:, :, :, 0]
-    imgs_g_align = images[:, :, :, 1]
-    imgs_r_align = images[:, :, :, 2]
-    img_rad, _ = Radiance_Map(imgs_b_align, d_ts, l=20.)
+    imgs_b_align = images_align[:, :, :, 0]
+    imgs_g_align = images_align[:, :, :, 1]
+    imgs_r_align = images_align[:, :, :, 2]
+    img_rad, _ = Radiance_Map(imgs_b_align, d_ts, l=1000.)
     print(img_rad.shape)
     #g, logE = Radiance_Map(images_b, shape, 0.5))
     #g, logE = Radiance_Map(images_b, shape, 0.5))
