@@ -31,11 +31,11 @@ def ToneMapping_durand(rad_maps, target_contrast=np.log10(5), gamma=0.75):
 
 if __name__ == "__main__":
     #images, d_ts = Load_Data_test('./Memorial_SourceImages', ".png")
-    images, d_ts = Load_Data('./test/images/10', './test/images/speed.txt', ".JPG")
+    images, d_ts = Load_Data('./test/images/7', './test/images/speed.txt', ".JPG")
     num_img = images.shape[0]
     H = images.shape[1]
     W = images.shape[2]
-    images_align = images#MTBAlignment(images, shift_range=20)
+    images_align = MTBAlignment(images, shift_range=20)
     imgs_b_align = images_align[:, :, :, 0]
     imgs_g_align = images_align[:, :, :, 1]
     imgs_r_align = images_align[:, :, :, 2]

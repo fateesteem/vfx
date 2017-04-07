@@ -89,7 +89,7 @@ def MTBAlignment(imgs, shift_range):
         print("img"+str(i)+" shift_ret:", transform_m[:, 2])
         imgs_align.append(img_align)
         imgs_align_gray.append(cur_gray)
-        pre_shift_ret = shift_ret
+        pre_shift_ret = transform_m[:, 2]
     return np.array(imgs_align)
 
 def RandomShift(img):
