@@ -9,7 +9,7 @@ def Rad2RGBE(img_rad):
     mantissa, exponent = np.frexp(max_pixvals)
     scaled_mantissa = mantissa*256.0/max_pixvals
     img_rgbe = np.zeros((H, W, 4), dtype='uint8')
-    img_rgbe[:, :, 0:3] = np.around(img_rad[:, :, 0:3]*scaled_mantissa[:, :, np.newaxis])
-    img_rgbe[:, :, 3] = np.around(exponent-8+128)
+    img_rgbe[:, :, 0:3] = np.around(img_rad[:, :, ::-1]*scaled_mantissa[:, :, np.newaxis])
+    img_rgbe[:, :, 3] = np.around(exponent +128)
 
     return img_rgbe

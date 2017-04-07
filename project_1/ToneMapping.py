@@ -20,7 +20,7 @@ def Construct_Rad_map(Images, g, shape):
     return rad / W 
     
 ### radiance: HDR value ###
-def Tone_mapping(radiance, mode = 'local', key = 0.18, delta = 1.0e-6, Lwhite = 1.0, phi = 8.0, eps = 0.2):
+def Tone_mapping(radiance, mode = 'local', key = 0.18, delta = 1.0e-6, Lwhite = 1.0, phi = 8.0, eps = 0.5):
     ### Reinhard mathod ###
     
     ### transform BGR to Luminance domain   ###
@@ -44,6 +44,7 @@ def Tone_mapping(radiance, mode = 'local', key = 0.18, delta = 1.0e-6, Lwhite = 
             print('s: ' + str(s) + '= ' + str(np.amax(V_s)))
             if np.abs(np.amax(V_s)) < eps:
                 s_max = s
+                break
         if s_max == None:
             print('None of DOG satisfies epsilon criterion!!!\n' + 'Use global operator instead')
             Ld = Lm * (1 + Lm / (Lwhite ** 2)) / (1 + Lm)
@@ -80,16 +81,17 @@ if __name__ == '__main__':
     g[1] = g_tmp.reshape((bin, ))
     rad[:, :, 2], g_tmp = Radiance_Map(images_align[:, :, :, 2], d_ts, l=500.)
     g[2] = g_tmp.reshape((bin, ))
-    img = Tone_mapping(rad, key = 0.25, Lwhite = 1.0, eps = 0.09,mode = 'local')
-    
+    img = Tone_mapping(rad, key = 0.25, Lwhite = 1.0, eps = 0.1,mode = 'local')
+    SaveRad(img, 'img.hdr') 
        
-    """
+    
     plt.figure()
     plt.plot(g[2], color = 'blue')
     plt.plot(g[1], color = 'green')
     plt.plot(g[0], color = 'red')
     plt.title('Reconstruct camera response curve')
-    
+    plt.show()
+    """
     f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize = (15, 8))#, sharex=False, sharey=True)
     im = ax1.imshow(np.log(rad[0]), aspect = 'auto')
     ax1.set_title('Blue')
