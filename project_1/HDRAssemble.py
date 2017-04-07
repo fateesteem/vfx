@@ -65,9 +65,9 @@ def Radiance_Map(images, d_ts, l):
     plt.ion()
     w = Weight_func() + 1e-10
     g_func, _ = getResponseCurve(images, d_ts, l=l, sample_skip=100)
-    plt.plot(g_func, range(g_func.shape[0]), 'r-')
-    plt.draw()
-    plt.pause(5)
+    #plt.plot(g_func, range(g_func.shape[0]), 'r-')
+    #plt.draw()
+    #plt.pause(5)
     rad_tot = np.sum(w[images]*(g_func[images] - np.log(d_ts[:, np.newaxis, np.newaxis])), axis=0)
     weight_tot = np.sum(w[images], axis=0)
 
