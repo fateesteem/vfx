@@ -43,7 +43,7 @@ if __name__ == "__main__":
     rad[:, :, 0], _ = Radiance_Map(imgs_b_align, d_ts, l=500.)
     rad[:, :, 1], _ = Radiance_Map(imgs_g_align, d_ts, l=500.)
     rad[:, :, 2], _ = Radiance_Map(imgs_r_align, d_ts, l=500.)
-    SaveRad(rad, "radiance.hdr")
+    Save_Rad(rad, "radiance.hdr")
     img_hdr = ToneMapping_durand(rad)
     cv2.imshow('img_hdr', img_hdr)#cv2.resize(img_hdr, (840, int(H*840/W))))
     cv2.imwrite('memorial_hdr_durand.jpg', (img_hdr*255).astype('uint8'))

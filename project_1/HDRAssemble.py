@@ -62,18 +62,20 @@ def getResponseCurve(images, d_ts, l, sample_skip=50):
 
 def Radiance_Map(images, d_ts, l):
     assert len(images.shape) == 3
-    plt.ion()
     w = Weight_func() + 1e-10
     g_func, _ = getResponseCurve(images, d_ts, l=l, sample_skip=100)
+    """
+    plt.ion()
     plt.plot(g_func, range(g_func.shape[0]), 'r-')
     plt.draw()
     plt.pause(5)
+    """
     rad_tot = np.sum(w[images]*(g_func[images] - np.log(d_ts[:, np.newaxis, np.newaxis])), axis=0)
     weight_tot = np.sum(w[images], axis=0)
 
     return np.exp(rad_tot / weight_tot), g_func
 
-def SaveRad(img_rad, filename):
+def Save_Rad(img_rad, filename):
     assert img_rad.shape[2] == 3
     H = img_rad.shape[0]
     W = img_rad.shape[1]
@@ -99,6 +101,8 @@ def Load_Data_test(dir, img_type):
             print("load image "+file+' - d_t:', d_t)
             images.append(img)
             d_ts.append(d_t)
+    if len(images) == 0:
+        raise Exception("No images loaded!")
     return np.array(images), np.array(d_ts)
 
 def Load_Data(imgs_dir, speed_file, img_type):
@@ -118,6 +122,8 @@ def Load_Data(imgs_dir, speed_file, img_type):
             print("load image "+file+' - d_t:', d_t)
             images.append(img)
             d_ts.append(d_t)
+    if len(images) == 0:
+        raise Exception("No images loaded!")
     return np.array(images), np.array(d_ts)
 
 if __name__ == "__main__":
