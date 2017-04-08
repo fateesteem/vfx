@@ -38,7 +38,6 @@ def RobertsonSolver(g, Z, d_ts, w, maxIter = 10):
 """
 def RobertsonSolver(g, Z, d_ts, w, maxIter = 10):
     d_ts_nx1 = d_ts[:, None]
-    d_ts_nxm = np.tile(d_ts_nx1, (1, Z.shape[-1]))
     E = np.ones((Z.shape[0], Z.shape[-1]), dtype = np.float32)
     eps = 1.0e-10
     print('Solving response curve by Robertson...')
@@ -53,7 +52,7 @@ def RobertsonSolver(g, Z, d_ts, w, maxIter = 10):
         ### Assume g(Z_ij) is known, opt E_i    ###
         E = np.sum(w[Z] * g[Z] * d_ts_nx1, axis=0) / normalizer
         Edt_nxm = np.tile(E, (Z.shape[0], 1))
-        Edt_nxm *= d_ts_nxm
+        Edt_nxm *= d_ts_nx1
         ### Assume E_i is known, opt g(Z_ij)    ###
         for i in range(bin):
             g[i] = np.sum(Edt_nxm[pos_bins[i]]) / E_ms[i]
