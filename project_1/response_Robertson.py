@@ -6,6 +6,7 @@ from HDRAssemble import *
 from MTBAlignment import *
 from ToneMapping import *
 from ToneMapping_durand import ToneMapping_durand
+"""
 def RobertsonSolver(g, Z, d_ts, w, maxIter = 10):
     E = np.ones((Z.shape[-1], 1), dtype = np.float32)
     eps = 1.0e-10
@@ -19,6 +20,39 @@ def RobertsonSolver(g, Z, d_ts, w, maxIter = 10):
             time_idx, pixel_idx = np.where(Z == i)
             E_m = len(time_idx)
             g[i] = np.sum(E[pixel_idx] * d_ts[time_idx]) / (E_m + eps)
+
+        g /= g[127] if g[127] != 0 else eps
+        diff = g[Z] - np.matmul(d_ts[:, np.newaxis], np.transpose(E[:, np.newaxis])) 
+        OBJ_p = OBJ if it > 0 else eps
+        OBJ = np.mean(w[Z] * (diff ** 2))
+        if it > 0:
+            conv = np.abs((OBJ - OBJ_p)/ OBJ_p)
+            if conv < 0.03:
+                print('At Iter: ' + str(it) + ' convergence criterion achieves!!')
+                break
+        else:
+            conv = np.inf
+        print('OBJ = ' + str(OBJ) + ' ratio = ' + str(conv))
+
+    return g, E
+"""
+def RobertsonSolver(g, Z, d_ts, w, maxIter = 10):
+    E = np.ones((Z.shape[-1], 1), dtype = np.float32)
+    eps = 1.0e-10
+    print('Solving response curve by Robertson...')
+
+    time_idxs, pixel_idxs, E_ms = [None]*bin, [None]*bin, [None]*bin
+    for i in range(bin):
+        time_idxs[i], pixel_idxs[i] = np.where(Z == i)
+        E_ms[i] = len(time_idxs[i]) + eps
+    normalizer = (np.sum(w[Z] * (d_ts[:, np.newaxis] ** 2), axis = 0) + eps)
+    for it in range(maxIter):
+        print("At iteration: " + str(it))
+        ### Assume g(Z_ij) is known, opt E_i    ###
+        E = np.sum(w[Z] * g[Z] * d_ts[:, np.newaxis], axis = 0) / normalizer
+        ### Assume E_i is known, opt g(Z_ij)    ###
+        for i in range(bin):
+            g[i] = np.sum(E[pixel_idxs[i]] * d_ts[time_idxs[i]]) / E_ms[i]
 
         g /= g[127] if g[127] != 0 else eps
         diff = g[Z] - np.matmul(d_ts[:, np.newaxis], np.transpose(E[:, np.newaxis])) 
@@ -54,8 +88,8 @@ def RadianceMapRobertson(images, d_ts, l = None):
 
 if __name__ == '__main__':
     #images, d_ts = Load_Data('./image2','./image2/speed.txt', '.JPG')
-    images, d_ts = Load_Data('./image1','./image1/speed.txt', '.png')
-    #images, d_ts = Load_Data_test('./Memorial_SourceImages', '.png')
+    #images, d_ts = Load_Data('./image1','./image1/speed.txt', '.png')
+    images, d_ts = Load_Data_test('./Memorial_SourceImages', '.png')
     shape = images.shape[1:3]
     g = np.zeros((3, bin), dtype = np.float32)
     images_align = MTBAlignment(images, shift_range=20)
