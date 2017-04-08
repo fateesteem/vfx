@@ -5,10 +5,11 @@ matplotlib.style.use('classic')
 from HDRAssemble import *
 from MTBAlignment import *
 from ToneMapping import *
-def RobertsonSolver(Z, d_ts, w, maxIter = 5):
-    g = np.ones((bin, ), dtype = np.float32)
+from ToneMapping_durand import ToneMapping_durand
+def RobertsonSolver(g, Z, d_ts, w, maxIter = 10):
     E = np.ones((Z.shape[-1], 1), dtype = np.float32)
     eps = 1.0e-10
+    print('Solving response curve by Robertson...')
     for it in range(maxIter):
         print("At iteration: " + str(it))
         ### Assume g(Z_ij) is known, opt E_i    ###
@@ -19,7 +20,18 @@ def RobertsonSolver(Z, d_ts, w, maxIter = 5):
             E_m = len(time_idx)
             g[i] = np.sum(E[pixel_idx] * d_ts[time_idx]) / (E_m + eps)
 
-    g /= g[127] if g[127] != 0 else eps
+        g /= g[127] if g[127] != 0 else eps
+        diff = g[Z] - np.matmul(d_ts[:, np.newaxis], np.transpose(E[:, np.newaxis])) 
+        OBJ_p = OBJ if it > 0 else eps
+        OBJ = np.mean(w[Z] * (diff ** 2))
+        if it > 0:
+            conv = np.abs((OBJ - OBJ_p)/ OBJ_p)
+            if conv < 0.03:
+                print('At Iter: ' + str(it) + ' convergence criterion achieves!!')
+                break
+        else:
+            conv = np.inf
+        print('OBJ = ' + str(OBJ) + ' ratio = ' + str(conv))
 
     return g, E
 def getResponseCurveRobertson(images, d_ts, w):
@@ -27,20 +39,21 @@ def getResponseCurveRobertson(images, d_ts, w):
     H = images.shape[1]
     W = images.shape[2]
     Z = images.reshape(num_img, -1)
-    
-    g, E = RobertsonSolver(Z, d_ts, w)
+    _, g = Radiance_Map(images, d_ts, l=500.)
+    g, E = RobertsonSolver(np.exp(g), Z, d_ts, w)
 
     E = E.reshape((H, W))
 
     return g, E
 
-def RadianceMapRobertson(images, d_ts):
+def RadianceMapRobertson(images, d_ts, l = None):
     w = Weight_func()
     g, rad = getResponseCurveRobertson(images, d_ts, w)
 
     return rad, np.log(g + 1e-10)
 
 if __name__ == '__main__':
+    #images, d_ts = Load_Data('./image2','./image2/speed.txt', '.JPG')
     images, d_ts = Load_Data('./image1','./image1/speed.txt', '.png')
     #images, d_ts = Load_Data_test('./Memorial_SourceImages', '.png')
     shape = images.shape[1:3]
@@ -53,7 +66,8 @@ if __name__ == '__main__':
     g[1] = g_tmp.reshape((bin, ))
     rad[:, :, 2], g_tmp = RadianceMapRobertson(images_align[:, :, :, 2], d_ts)
     g[2] = g_tmp.reshape((bin, ))
-    img = Tone_mapping(rad, key = 0.18, Lwhite = 2.0, eps = 0.4,mode = 'local')
+    #img = Tone_mapping(rad, key = 0.18, Lwhite = 2.0, eps = 0.4,mode = 'local')
+    img = ToneMapping_durand(rad)
     Save_Rad(img, 'img.hdr')
 
 
