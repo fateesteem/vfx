@@ -81,7 +81,7 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--range", help="Alignment maximum shift range", type=int, default=20)
     parser.add_argument("-l", "--ld", help="Lambda factor of calculating response curve", default=250)
     parser.add_argument("-m", "--method", help="Algorithm for tone mapping", default='durand')
-    parser.add_argument("-g", "--gsolver", help="Algorithm for reconstructing response curve", default='Debevec')
+    parser.add_argument("-g", "--gsolver", help="Algorithm for reconstructing response curve", default='Robertson')
     parser.add_argument("-v", "--verbose", help="plot response curve & radiance map", default=False)
     args = parser.parse_args()
 
