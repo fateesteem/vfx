@@ -19,11 +19,11 @@ def Construct_Rad_map(Images, d_ts, g, shape):
     return rad / W
 
 ### radiance: HDR value ###
-def Tone_mapping(radiance, mode = 'local', key = 0.72, delta = 1.0e-6, Lwhite = 1.0, phi = 8.0, eps = 0.21):
+def Tone_mapping(radiance, mode = 'local', key = 0.72, delta = 1.0e-6, Lwhite = 3.0, phi = 10.0, eps = 0.4):
     ### Reinhard mathod ###
 
     ### transform BGR to Luminance domain   ###
-    Lw = 0.2126 * radiance[:, :, 2] + 0.7152 * radiance[:, :, 1] + 0.0722 * radiance[:, :, 0]
+    Lw = 0.2126 * radiance[:, :, 2] + 0.7152 * radiance[:, :, 1] + 0.0722 * radiance[:, :, 0] + delta
     #Lw = np.sqrt(0.114 * (radiance[0] ** 2) + 0.587 * (radiance[1] ** 2) + 0.299 * (radiance[2] ** 2))
     Lw_ = np.exp(np.mean(np.log(delta + Lw)))
     Lm = key * Lw / Lw_
@@ -40,10 +40,10 @@ def Tone_mapping(radiance, mode = 'local', key = 0.72, delta = 1.0e-6, Lwhite = 
             kernel_s_1 = gen_gaussian(s_1)
             L_blur[s_level] = fftconvolve(Lm, kernel_s_1, mode = 'same')
             V_s = (L_blur[s_level - 1] - L_blur[s_level]) / ((2 ** phi)*key/(s ** 2) +  L_blur[s_level - 1])
-            print('s: ' + str(s_level - 1) + '= ' + str(np.amax(V_s)))
-            if np.abs(np.amax(V_s)) < eps:
+            print('s: ' + str(s_level - 1) + '= ' + str(np.amax(np.abs(V_s))))
+            if np.amax(np.abs(V_s)) < eps:
                 s_max = s_level - 1
-                break
+                #break
         if s_max == None:
             print('None of DOG satisfies epsilon criterion!!!\n' + 'Use global operator instead')
             Ld = Lm * (1 + Lm / (Lwhite ** 2)) / (1 + Lm)
@@ -65,7 +65,7 @@ def gen_gaussian(s, alpha = 1.0 / 2 / np.sqrt(2)):
     x -= miu
     y -= miu
 
-    return np.exp(-(x ** 2 + y ** 2) / ((sigma) ** 2)) / np.pi / (sigma ** 2)
+    return np.exp(-(x ** 2 + y ** 2) / ((sigma) ** 2) / 2) / np.pi / (sigma ** 2) / 2
 
 if __name__ == '__main__':
     #images, d_ts = Load_Data('./image3/1','./image3/1/speed.txt', '.JPG')
