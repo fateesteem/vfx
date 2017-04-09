@@ -6,6 +6,7 @@ from HDRAssemble import *
 from MTBAlignment import *
 from ToneMapping import *
 from ToneMapping_durand import ToneMapping_durand
+from scipy.sparse import csr_matrix
 """
 def RobertsonSolver(g, Z, d_ts, w, maxIter = 10):
     E = np.ones((Z.shape[-1], 1), dtype = np.float32)
@@ -79,10 +80,12 @@ def RobertsonSolver(g, Z, d_ts, w, maxIter = 10):
     print('Solving response curve by Robertson...')
 
     time_idxs, pixel_idxs, E_ms = [None]*bin, [None]*bin, [None]*bin
+    cols = np.arange(Z.size)
+    pack_idxs = csr_matrix((cols, (Z.ravel(), cols)), shape = (bin, Z.size))
+    idxs = [np.unravel_index(row.data, Z.shape) for row in pack_idxs]
     for i in range(bin):
-        #pos_bins[i] = (Z == i)
-        time_idxs[i], pixel_idxs[i] = np.where(Z == i) 
-        E_ms[i] = len(time_idxs[i]) + eps
+        #pos_bins[i] = (Z == i) 
+        E_ms[i] = len(idxs[i][0]) + eps
     normalizer = (np.sum(w[Z] * (d_ts_nx1 ** 2), axis = 0) + eps)
     for it in range(maxIter):
         print("At iteration: " + str(it))
@@ -92,7 +95,7 @@ def RobertsonSolver(g, Z, d_ts, w, maxIter = 10):
         #Edt_nxm *= d_ts_nx1
         ### Assume E_i is known, opt g(Z_ij)    ###
         for i in range(bin):
-            g[i] = (E[pixel_idxs[i]] @ d_ts_nx1[time_idxs[i]])  / E_ms[i]
+            g[i] = (E[idxs[i][1]] @ d_ts_nx1[idxs[i][0]])  / E_ms[i]
 
         g /= g[127] if g[127] != 0 else eps
         diff = g[Z] - np.matmul(d_ts_nx1, E[np.newaxis, :])
