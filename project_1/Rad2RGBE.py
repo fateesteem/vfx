@@ -6,7 +6,7 @@ def Rad2RGBE(img_rad):
     assert len(img_rad.shape) == 3
     H = img_rad.shape[0]
     W = img_rad.shape[1]
-    max_pixvals = np.max(img_rad, axis=2, keepdims=True)
+    max_pixvals = np.max(img_rad, axis=2, keepdims=True) + 1.0e-20
     max_mantissa, exponent = np.frexp(max_pixvals)
     mantissa = max_mantissa * img_rad[:, :, 0:3] / max_pixvals * 256.0
     img_rgbe = np.zeros((H, W, 4), dtype='uint8')
