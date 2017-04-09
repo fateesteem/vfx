@@ -13,7 +13,7 @@ def ToneMapping_durand(rad_maps, target_contrast=np.log10(5), gamma=0.75):
     I = 0.0722 * rad_b + 0.7152 * rad_g + 0.2126 * rad_r
     #I = 0.114 * rad_b + 0.587 * rad_g + 0.299 * rad_r
     logI = np.log10(I)
-    blur_logI = BilateralFilter(logI)
+    blur_logI = BilateralFilter(logI + 1e-20)
     detail = logI - blur_logI
 
     blur_logI = (blur_logI - np.max(blur_logI)) * target_contrast / (np.max(blur_logI) - np.min(blur_logI))

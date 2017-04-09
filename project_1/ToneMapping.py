@@ -19,7 +19,7 @@ def Construct_Rad_map(Images, d_ts, g, shape):
     return rad / W
 
 ### radiance: HDR value ###
-def Tone_mapping(radiance, mode = 'local', key = 0.18, delta = 1.0e-6, Lwhite = 1.0, phi = 8.0, eps = 0.5):
+def Tone_mapping(radiance, mode = 'local', key = 0.72, delta = 1.0e-6, Lwhite = 1.0, phi = 8.0, eps = 0.21):
     ### Reinhard mathod ###
 
     ### transform BGR to Luminance domain   ###
@@ -31,32 +31,32 @@ def Tone_mapping(radiance, mode = 'local', key = 0.18, delta = 1.0e-6, Lwhite = 
         Ld = Lm * (1 + Lm / (Lwhite ** 2)) / (1 + Lm)
     else:
         s_max = None
-        L_blur = np.zeros((8, Lw.shape[0], Lw.shape[1]), dtype = np.float32)
+        L_blur = np.zeros((9, Lw.shape[0], Lw.shape[1]), dtype = np.float32)
         kernel = gen_gaussian(1)
         L_blur[0] = fftconvolve(Lm, kernel, mode = 'same')
-        for s in range(1, 8):
-            #kernel_s = gen_gaussian(s)
-            kernel_s_1 = gen_gaussian(s+1)
-            #L_blur_s = fftconvolve(Lm, kernel_s, mode = 'same')
-            L_blur[s] = fftconvolve(Lm, kernel_s_1, mode = 'same')
-            V_s = (L_blur[s - 1] - L_blur[s]) / ((2 ** phi)/(s ** 2) +  L_blur[s - 1])
-            print('s: ' + str(s) + '= ' + str(np.amax(V_s)))
+        for s_level in range(1, 9):
+            s = 1.6 ** (s_level - 1)
+            s_1 = 1.6 ** s_level    #next level
+            kernel_s_1 = gen_gaussian(s_1)
+            L_blur[s_level] = fftconvolve(Lm, kernel_s_1, mode = 'same')
+            V_s = (L_blur[s_level - 1] - L_blur[s_level]) / ((2 ** phi)*key/(s ** 2) +  L_blur[s_level - 1])
+            print('s: ' + str(s_level - 1) + '= ' + str(np.amax(V_s)))
             if np.abs(np.amax(V_s)) < eps:
-                s_max = s
+                s_max = s_level - 1
                 break
         if s_max == None:
             print('None of DOG satisfies epsilon criterion!!!\n' + 'Use global operator instead')
             Ld = Lm * (1 + Lm / (Lwhite ** 2)) / (1 + Lm)
         else:
             print('in local operator, s_max = ' + str(s_max) + ', w.r.t epsilon = ' + str(eps))
-            Ld = Lm/(1 + L_blur[s_max - 1])
+            Ld = Lm/(1 + L_blur[s_max])
     ### generate different scale gaussian filter ###
     img = radiance * Ld[:, :, np.newaxis] / Lw[:, :, np.newaxis]
-
+    img = np.where(img > 1.0, 1.0, img)
     return img
 
-def gen_gaussian(scale, alpha = 1.0 / 2 / np.sqrt(2)):
-    s = 1.6 ** scale
+def gen_gaussian(s, alpha = 1.0 / 2 / np.sqrt(2)):
+    
     s = math.ceil(s)
     sigma = alpha * s
 
