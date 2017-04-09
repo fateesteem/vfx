@@ -115,8 +115,8 @@ def Load_Data(imgs_dir, speed_file, img_type):
         d_t_map[tokens[0]] = float(fractions[0]) / float(fractions[1]) if len(fractions) == 2 else float(fractions[0])
     images = []
     d_ts = []
-    for file in os.listdir(imgs_dir):
-        if file.endswith(img_type):
+    for file in sorted(os.listdir(imgs_dir)):
+        if file.endswith(img_type) and not file.startswith('._'):
             d_t = d_t_map[file[:-4]]
             img = cv2.imread(os.path.join(imgs_dir, file))
             print("load image "+file+' - d_t:', d_t)
