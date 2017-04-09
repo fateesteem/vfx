@@ -35,7 +35,7 @@ def RobertsonSolver(g, Z, d_ts, w, maxIter = 10):
         print('OBJ = ' + str(OBJ) + ' ratio = ' + str(conv))
 
     return g, E
-"""
+
 def RobertsonSolver(g, Z, d_ts, w, maxIter = 10):
     d_ts_nx1 = d_ts[:, None]
     E = np.ones((Z.shape[0], Z.shape[-1]), dtype = np.float32)
@@ -71,6 +71,44 @@ def RobertsonSolver(g, Z, d_ts, w, maxIter = 10):
         print('OBJ = ' + str(OBJ) + ' ratio = ' + str(conv))
 
     return g, E
+"""
+def RobertsonSolver(g, Z, d_ts, w, maxIter = 10):
+    d_ts_nx1 = d_ts[:, None]
+    E = np.ones((Z.shape[0], Z.shape[-1]), dtype = np.float32)
+    eps = 1.0e-10
+    print('Solving response curve by Robertson...')
+
+    time_idxs, pixel_idxs, E_ms = [None]*bin, [None]*bin, [None]*bin
+    for i in range(bin):
+        #pos_bins[i] = (Z == i)
+        time_idxs[i], pixel_idxs[i] = np.where(Z == i) 
+        E_ms[i] = len(time_idxs[i]) + eps
+    normalizer = (np.sum(w[Z] * (d_ts_nx1 ** 2), axis = 0) + eps)
+    for it in range(maxIter):
+        print("At iteration: " + str(it))
+        ### Assume g(Z_ij) is known, opt E_i    ###
+        E = np.sum(w[Z] * g[Z] * d_ts_nx1, axis=0) / normalizer
+        #Edt_nxm = np.tile(E, (Z.shape[0], 1))
+        #Edt_nxm *= d_ts_nx1
+        ### Assume E_i is known, opt g(Z_ij)    ###
+        for i in range(bin):
+            g[i] = (E[pixel_idxs[i]] @ d_ts_nx1[time_idxs[i]])  / E_ms[i]
+
+        g /= g[127] if g[127] != 0 else eps
+        diff = g[Z] - np.matmul(d_ts_nx1, E[np.newaxis, :])
+        OBJ_p = OBJ if it > 0 else eps
+        OBJ = np.mean(w[Z] * (diff ** 2))
+        if it > 0:
+            conv = np.abs((OBJ - OBJ_p)/ OBJ_p)
+            if conv < 0.03:
+                print('At Iter: ' + str(it) + ' convergence criterion achieves!!')
+                break
+        else:
+            conv = np.inf
+        print('OBJ = ' + str(OBJ) + ' ratio = ' + str(conv))
+
+    return g, E
+
 def getResponseCurveRobertson(images, d_ts, w):
     num_img = images.shape[0]
     H = images.shape[1]
