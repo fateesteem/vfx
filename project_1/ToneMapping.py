@@ -19,7 +19,7 @@ def Construct_Rad_map(Images, d_ts, g, shape):
     return rad / W
 
 ### radiance: HDR value ###
-def Tone_mapping(radiance, mode = 'local', key = 0.72, delta = 1.0e-6, Lwhite = 3.0, phi = 10.0, eps = 0.4):
+def Tone_mapping(radiance, mode = 'local', key = 1, delta = 1.0e-6, Lwhite = 1.0, phi = 8.0, eps = 0.3):
     ### Reinhard mathod ###
 
     ### transform BGR to Luminance domain   ###
