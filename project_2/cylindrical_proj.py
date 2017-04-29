@@ -15,9 +15,9 @@ def cylindrical_projection(img, focal):
     x = np.arange(W, dtype = np.float32) - x_center
     y = np.arange(H, dtype = np.float32) - y_center
 
-    x = focal * np.arctan(x / focal) 
     r = 1 / np.sqrt(x ** 2 + focal ** 2)
     h = y[:, np.newaxis] @ r[np.newaxis, :]
+    x = focal * np.arctan(x / focal) 
     y = focal * h
 
     x += x_center
