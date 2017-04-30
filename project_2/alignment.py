@@ -6,6 +6,32 @@ import matplotlib.pyplot as plt
 P = 0.99
 
 
+def AffineTransform(v, M):
+    """
+    Perform Affine transformation to vectors v by matrix M.
+    Args:
+      v:    The location vectors to be transformed. A numpy array of shape [N, D]
+      M:    Affine transform matrix. A numpy array of shape [2, 3].
+
+    Returns:
+      Transformed vectors. A numpy array of shape same as v.
+    """
+    assert v.shape[1] == 2
+    assert M.shape = (2, 3)
+    num = v.shape[0]
+    add1_v = np.zeros((num, 3), dtype='float')
+    add1_v[:, :2] = v
+    add1_v[:, 2] = 1.
+    return add1_v @ self.matrix.transpose()
+
+def AffineCompose(M1, M2):
+    assert M1.shape = (2, 3)
+    assert M2.shape = (2, 3)
+    M1_3x3 = np.append(M1, [[0., 0., 1.]], axis=0)
+    M2_3x3 = np.append(M2, [[0., 0., 1.]], axis=0)
+    return (M1 @ M2)[:2, :]
+
+
 class SolveLine:
     def __init__(self, threshold):
         self.matrix = None
@@ -71,11 +97,7 @@ class SolveTransform:
         assert v.shape[0] == v_prime.shape[0]
         assert v.shape[1] == 2 and v_prime.shape[1] == 2
         threshold = self.threshold
-        num = v.shape[0]
-        add1_v = np.zeros((num, 3), dtype='float')
-        add1_v[:, :2] = v
-        add1_v[:, 2] = 1.
-        v_prime_calc = add1_v @ self.matrix.transpose()
+        v_prime_calc = AffineTransform(v, self.matrix)
         dists = (np.sum((v_prime - v_prime_calc)**2, axis=1))**0.5
         is_inlier = dists < threshold
         if np.any(is_inlier):
