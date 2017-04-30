@@ -8,11 +8,13 @@ def genMatchPairs(feats_1, feats_2, k, p):
     """
     Generates feature matching pairs by searching for K nearest neighbors using KDTree.
     K nearest neighbors are searched mutually.
+
     Args:
       feats1: numpy array of shape [N, D]
       feats2: numpy array of shape [N, D]
       k:      The number of nearest neighbors to search.
-      p:      Which Minkowski p-norm to use. 1 is the sum-of-absolute-values “Manhattan” distance. 2 is the usual Euclidean di              stance. Infinity is the maximum-coordinate-difference distance.
+      p:      Which Minkowski p-norm to use. 1 is the sum-of-absolute-values "Manhattan" distance. 2 is the usual Euclidean di              stance. Infinity is the maximum-coordinate-difference distance.
+
     Returns:
       idxs:   indexs of features of matching pairs (first column: indexs of feats_1, second column: indexs of feats_2)
     """
