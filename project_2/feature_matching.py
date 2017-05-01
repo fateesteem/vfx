@@ -1,7 +1,8 @@
 import numpy as np
+from scipy.spatial import KDTree
 import cv2
 from data_helper import Load_Data
-from scipy.spatial import KDTree
+from MOPS import Build_pyramid
 
 
 def genMatchPairs(feats_1, feats_2, k, p):
@@ -69,28 +70,32 @@ if __name__ == "__main__":
     gray1 = cv2.cvtColor(imgs[1], cv2.COLOR_BGR2GRAY)
     H = gray0.shape[0]
     W = gray0.shape[1]
-    ## feature detection by opencv sift ##
-    sift = cv2.xfeatures2d.SIFT_create()
-    kp0, des0 = sift.detectAndCompute(gray0,None)
-    kp1, des1 = sift.detectAndCompute(gray1,None)
-    v0 = np.array([kp0[i].pt for i in range(len(kp0))]) # (x, y)
-    v1 = np.array([kp1[i].pt for i in range(len(kp1))])
+    ## MOPS features ##
+    feats0 = Build_pyramid(imgs[0])
+    feats1 = Build_pyramid(imgs[1])
+    des0 = np.array([feat.descriptor for feat in feats0])
+    des1 = np.array([feat.descriptor for feat in feats1])
 
     ## self implemented matching ##
     id_pairs = genMatchPairs(des0, des1, k=2, p=2)
     my_img = np.zeros((H, W*2, 3), dtype='uint8')
     my_img[:, :W, :] = imgs[0]
     my_img[:, W:, :] = imgs[1]
-    for pt in v0:
-        cv2.circle(my_img, (int(round(pt[0])), int(round(pt[1]))), 3, (255,0,0), 2)
-    for pt in v1:
-        cv2.circle(my_img, (int(round(pt[0]+W)), int(round(pt[1]))), 3, (255,0,0), 2)
+    for feat in feats0:
+        cv2.circle(my_img, (feat.x, feat.y), 3, (255,0,0), 2)
+    for feat in feats1:
+        cv2.circle(my_img, (feat.x+W, feat.y), 3, (255,0,0), 2)
     for pair in id_pairs:
-        pt0 = (int(round(v0[pair[0]][0])), int(round(v0[pair[0]][1])))
-        pt1 = (int(round(v1[pair[1]][0]+W)), int(round(v1[pair[1]][1])))
+        pt0 = (feats0[pair[0]].x, feats0[pair[0]].y)
+        pt1 = (feats1[pair[1]].x+W, feats1[pair[1]].y)
         cv2.circle(my_img, pt0, 3, (0,255,0), 2)
         cv2.circle(my_img, pt1, 3, (0,255,0), 2)
         cv2.line(my_img,pt0,pt1,(0,255,0),1)
+
+    ## feature detection by opencv sift ##
+    sift = cv2.xfeatures2d.SIFT_create()
+    kp0, des0 = sift.detectAndCompute(gray0,None)
+    kp1, des1 = sift.detectAndCompute(gray1,None)
 
     ## cv version matching ##
     FLANN_INDEX_KDTREE = 0

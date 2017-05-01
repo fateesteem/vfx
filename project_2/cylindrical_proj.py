@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.interpolate import interp2d
 import cv2
 import os
 from data_helper import Load_Data
@@ -20,13 +21,13 @@ def cylindrical_projection(img, focal):
     x = focal * np.arctan(x / focal) 
     y = focal * h
 
-    x += x_center
+    #x += x_center
     x -= np.amin(x)
     y += y_center
     #new_img = interpolate(img, np.tile(x, H), y.ravel()).reshape(H, W, Ch).astype(np.uint8)
     new_W = (np.amax(np.floor(x)) - np.amin(np.floor(x)) + 1).astype(int)
     new_img = np.zeros((H, new_W, Ch), dtype=np.uint8)
-    new_img[np.floor(y).astype(int), np.floor(np.tile(x, (H, 1))).astype(int), :] = img 
+    new_img[np.floor(y).astype(int), np.floor(np.tile(x, (H, 1))).astype(int), :] = img
     return new_img
 
 
