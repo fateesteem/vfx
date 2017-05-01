@@ -8,6 +8,18 @@ from MOPS_feature import FeaturePoint
 
 EPS = 1.0e-10
 
+"""
+Build image pyramid:
+
+    Blur image with std=1.0 and downsample it with factor 2.
+    Then apply feature detection and description
+
+    Args:
+        img: input image
+        l: pyramid level
+    Returns:
+        list of feature points
+"""
 def Build_pyramid(img, l = 3):
     init_H, init_W = img.shape[:2]
     img_gray = (img[:, :, :3] @ [0.114, 0.587, 0.299])
@@ -28,7 +40,7 @@ def Build_pyramid(img, l = 3):
         feature_points += feature_descriptor(feature_pts_loc, i, imgs_pyramid[i])
 
     print('{} feature points collected !'.format(len(feature_points)))
-    
+    return feature_points    
 """
 Adaptive non-maximal supression:
 
@@ -123,7 +135,21 @@ def sub_pixel_refine(feature_pt_lct, Response):
 
     return feature_pt_lct
 
+"""
+Feature detection:
+    
+    Use Harris corner detection with harmonic function to evaluate corner Response.
+    Choose out local maximum in 3x3 local region, then find out top k feature points,
+    under maximal radius criterion with adaptive non-maximal suppression.
+    Apply sub-pixel refinement to find out precise maximal points, and correct the coarse
+    location but quantized.
 
+    Args:
+        img: blurred and downsampled image from image pyramid.
+
+    Returns:
+        numpy array of feature points location
+"""
 def feature_detect(img):
     H, W = img.shape[:2]
     org_img = np.dstack([img] * 3)
@@ -136,7 +162,7 @@ def feature_detect(img):
 
     ## corner response ##
     f_HM = (Hess[..., 0] * Hess[..., 3] - Hess[..., 1] ** 2) / (Hess[..., 0] + Hess[..., 3] + EPS)
-    bound_thres = 20 << 0 # at least 20 * 2^(sample scale = 2) pixel needs to generate descriptor
+    bound_thres = int(np.ceil(20*np.sqrt(2))) << 0 # at least 20 * 2^(sample scale = 2) pixel needs to generate descriptor
     bound_mask = ((np.arange(H) <= bound_thres) | (np.arange(H) >= H-bound_thres))[:, None]\
                 |((np.arange(W) <= bound_thres) | (np.arange(W) >= W-bound_thres))
     f_HM[bound_mask] = 0.0
@@ -172,6 +198,23 @@ def feature_detect(img):
         cv2.destroyAllWindows()
     """
     return rf_sup_locations
+
+"""
+MOPS feature descriptor:
+
+    First, calculate orientation of each feature point via smoothed gradient(std = 4.5).
+    As recommendation in paper, use current level image but blurred(std = 2*1.0) to sample
+    8x8 patches with spacing = 5. 
+    The patches need to be sample in the direction consistent with orientation of feature point.
+    Hence, apply rotation to each sample coordinate.
+
+    Args:
+        feature_pts_lct: numpy array of feature points locations.
+        level: current image level of feature points
+        img: current image
+    Returns:
+        list of feature points at curent level.
+"""
 def feature_descriptor(feature_pts_lct, level, img):
     ## orientation calculation ##
     H, W = img.shape[:2]
@@ -186,27 +229,32 @@ def feature_descriptor(feature_pts_lct, level, img):
     feature_points = []
     ## write descriptor to each feature points ##
     for pt in feature_pts_lct:
-        y, x = pt
-        orientation = np.array([u[y, x, 0], u[y, x, 1]]) #[cos, sin]
+        pt_y, pt_x = pt
+        orientation = np.array([u[pt_y, pt_x, 0], u[pt_y, pt_x, 1]]) #[cos, sin]
         rotation = np.array([[orientation[0], -1 * orientation[1]], [orientation[1], orientation[0]]])
         ## first we setting all the sample index on spatial acting like stride 5##
         x, y = np.meshgrid(range(-18, 18, 5), range(-18, 18, 5)) # choose central point as index may be more stable
         ## apply transform on this sample points ##
-        transformed_point = rotation @ np.array([x.ravel(), y.ravel()])
+        transformed_point = rotation @ np.array([x.ravel(), y.ravel()]) + [[pt_x], [pt_y]]
         sample_coor = np.int32(np.rint(transformed_point))
         descriptor = sampled_img[sample_coor[1], sample_coor[0]]
         ## normalization ##
         descriptor = (descriptor - descriptor.mean()) / (descriptor.std() + EPS)
-        feature_points.append(FeaturePoint(x << level, y << level, orientation, level, descriptor))
+        feature_points.append(FeaturePoint(pt_x << level, pt_y << level, orientation, level, descriptor))
     
     return feature_points
 
 if __name__ == '__main__':
     imgs, fs = Load_Data('parrington', 'parrington/f.txt', '.jpg')
     img_proj = []
-    Build_pyramid(imgs[1])
-    #Harris(imgs[0]) 
-    cv2.imshow('old', imgs[1][:, :, :])
+    feature_points = Build_pyramid(imgs[1])
+    draw_img = cv2.copyMakeBorder(imgs[1],0,0,0,0,cv2.BORDER_REPLICATE)
+    for pt in feature_points:
+        level = pt.level
+        cv2.circle(draw_img, (pt.x, pt.y), 1, (0,0,255 >> level))
+
+    cv2.imshow('input', imgs[1][:, :, :])
+    cv2.imshow('feature', draw_img.astype(np.uint8))
     k = cv2.waitKey(0)
     if k == 27:         # wait for ESC key to exit
         cv2.destroyAllWindows()
