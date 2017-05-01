@@ -20,19 +20,16 @@ Build image pyramid:
     Returns:
         list of feature points
 """
-def Build_pyramid(img, l = 3):
+def Build_pyramid(img, l = 3, verbose = False):
     init_H, init_W = img.shape[:2]
     img_gray = (img[:, :, :3] @ [0.114, 0.587, 0.299])
-    print(img_gray.shape)
     imgs_pyramid = [img_gray]
     for i in range(l):
         imgs_pyramid.append(cv2.GaussianBlur(imgs_pyramid[i], None, 1.0)[::2, ::2])
-    tot_W = 2*(1 - 2**(-1 * l)) * init_W
-    img_tot = np.zeros((init_H, int(tot_W)))
+    tot_W = 0
     for i in range(l):
-        img_tot[:int(init_H >> i), \
-                int(init_W*(2 * (1 - 2 ** (-1 * i)))):int(init_W * (2 * (1 - 2 ** (-1 * (i + 1)))))] = imgs_pyramid[i]
-    cv2.imshow('pyramid', img_tot.astype(np.uint8))
+        tot_W += imgs_pyramid[i].shape[1]
+    img_tot = np.zeros((init_H, tot_W))
     feature_points = []
     for i in range(l):
         print('processing level {} ...'.format(i))
@@ -40,6 +37,34 @@ def Build_pyramid(img, l = 3):
         feature_points += feature_descriptor(feature_pts_loc, i, imgs_pyramid[i])
 
     print('{} feature points collected !'.format(len(feature_points)))
+    print()
+    if verbose:
+        W_acc = 0
+        for i in range(l):
+            H, W = imgs_pyramid[i].shape[:2]
+            img_tot[:H, W_acc:W_acc + W] = imgs_pyramid[i]
+            W_acc += W
+        img_tot = np.dstack([img_tot] * 3)
+        for pt in feature_points:
+            level = pt.level
+            orientation = pt.orientation
+            cv2.circle(img_tot, ((pt.x >> level) + int(init_W*(2 * (1 - 2 ** (-1 * level)))), pt.y >> level), 1, (255 >> (level + 1) ,0 , 255 >> level), -1)
+            """
+            if level == -1:
+                x, y = np.meshgrid(range(-20, 21, 40), range(-20, 21, 40))
+                rotation = np.array([[orientation[0], -1 * orientation[1]], [orientation[1], orientation[0]]])
+                x <<= level # [-20, 20, -20, 20]
+                y <<= level # [-20, -20, 20, 20]
+                transformed_point = rotation @ np.array([x.ravel(), y.ravel()]) + [[pt.x], [pt.y]]
+                sample_coor = np.int32(np.rint(transformed_point))
+                cv2.line(draw_img, (pt.x, pt.y), ((sample_coor[0][1] + sample_coor[0][3]) >> 1, (sample_coor[1][1] + sample_coor[1][3]) >> 1), 
+                        (0, 0, 255))
+                cv2.line(draw_img, (sample_coor[0][0], sample_coor[1][0]), (sample_coor[0][1], sample_coor[1][1]), (0, 0, 255), 1)
+                cv2.line(draw_img, (sample_coor[0][1], sample_coor[1][1]), (sample_coor[0][3], sample_coor[1][3]), (0, 0, 255), 1)
+                cv2.line(draw_img, (sample_coor[0][3], sample_coor[1][3]), (sample_coor[0][2], sample_coor[1][2]), (0, 0, 255), 1)
+                cv2.line(draw_img, (sample_coor[0][2], sample_coor[1][2]), (sample_coor[0][0], sample_coor[1][0]), (0, 0, 255), 1)
+            """
+        cv2.imshow('pyramid', img_tot.astype(np.uint8))
     return feature_points    
 """
 Adaptive non-maximal supression:
@@ -235,7 +260,7 @@ def feature_descriptor(feature_pts_lct, level, img):
         ## first we setting all the sample index on spatial acting like stride 5##
         x, y = np.meshgrid(range(-18, 18, 5), range(-18, 18, 5)) # choose central point as index may be more stable
         ## apply transform on this sample points ##
-        transformed_point = rotation @ np.array([x.ravel(), y.ravel()]) + [[pt_x], [pt_y]]
+        transformed_point = rotation @ np.array([x.ravel(), y.ravel()]) + [[pt_x], [pt_y]] #[[x_coor], [y_coor]]
         sample_coor = np.int32(np.rint(transformed_point))
         descriptor = sampled_img[sample_coor[1], sample_coor[0]]
         ## normalization ##
@@ -247,12 +272,25 @@ def feature_descriptor(feature_pts_lct, level, img):
 if __name__ == '__main__':
     imgs, fs = Load_Data('parrington', 'parrington/f.txt', '.jpg')
     img_proj = []
-    feature_points = Build_pyramid(imgs[1])
+    feature_points = Build_pyramid(imgs[1], verbose = True)
     draw_img = cv2.copyMakeBorder(imgs[1],0,0,0,0,cv2.BORDER_REPLICATE)
     for pt in feature_points:
         level = pt.level
-        cv2.circle(draw_img, (pt.x, pt.y), 1, (0,0,255 >> level))
-
+        orientation = pt.orientation
+        cv2.circle(draw_img, (pt.x, pt.y), 1, (255 >> (level + 1) ,0 , 255 >> level), -1)
+        if level == -1:
+            x, y = np.meshgrid(range(-20, 21, 40), range(-20, 21, 40))
+            rotation = np.array([[orientation[0], -1 * orientation[1]], [orientation[1], orientation[0]]])
+            x <<= level # [-20, 20, -20, 20]
+            y <<= level # [-20, -20, 20, 20]
+            transformed_point = rotation @ np.array([x.ravel(), y.ravel()]) + [[pt.x], [pt.y]]
+            sample_coor = np.int32(np.rint(transformed_point))
+            cv2.line(draw_img, (pt.x, pt.y), ((sample_coor[0][1] + sample_coor[0][3]) >> 1, (sample_coor[1][1] + sample_coor[1][3]) >> 1), 
+                    (0, 0, 255))
+            cv2.line(draw_img, (sample_coor[0][0], sample_coor[1][0]), (sample_coor[0][1], sample_coor[1][1]), (0, 0, 255), 1)
+            cv2.line(draw_img, (sample_coor[0][1], sample_coor[1][1]), (sample_coor[0][3], sample_coor[1][3]), (0, 0, 255), 1)
+            cv2.line(draw_img, (sample_coor[0][3], sample_coor[1][3]), (sample_coor[0][2], sample_coor[1][2]), (0, 0, 255), 1)
+            cv2.line(draw_img, (sample_coor[0][2], sample_coor[1][2]), (sample_coor[0][0], sample_coor[1][0]), (0, 0, 255), 1)
     cv2.imshow('input', imgs[1][:, :, :])
     cv2.imshow('feature', draw_img.astype(np.uint8))
     k = cv2.waitKey(0)
