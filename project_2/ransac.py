@@ -38,6 +38,10 @@ def RANSAC(v, v_prime, n, p, solver):
             max_cnt = cnt
             min_dist = dist
             res_matrix = solver.getMatrix()
+    print("Matrix:    %12.6f%12.6f%12.6f" % tuple(res_matrix[0, :]))
+    print("           %12.6f%12.6f%12.6f" % tuple(res_matrix[1, :]))
+    print("mean_dist: %12.6f" % min_dist)
+    print("inliers:   %d/%d" % (max_cnt, N))
     return res_matrix
 
 

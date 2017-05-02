@@ -121,7 +121,55 @@ def GridAffineTransform(H, W, matrix):
     return y, x
 
 
-def ImageStitching(imgs_proj):
+def BlendingWeights(y0, x0, mask0, y1, x1, mask1, H):
+    if np.min(x0) < np.min(x1):
+        y_left = y0
+        x_left = x0
+        mask_left = mask0
+        y_right = y1
+        x_right = x1
+        mask_right = mask1
+        left_is_left = True
+    else:
+        y_left = y1
+        x_left = x1
+        mask_left = mask1
+        y_right = y0
+        x_right = x0
+        mask_right = mask0
+        left_is_left = False
+    left_weights = np.ones_like(y_left, dtype='float')
+    right_weights = np.ones_like(y_right, dtype='float')
+    for j in range(H):
+        #jx_left = (y_left == j)
+        jx_left = np.logical_and(y_left == j, mask_left)
+        if np.sum(jx_left) == 0:
+            continue
+        right_border = np.max(x_left[jx_left])
+        #jx_right = (y_right == j)
+        jx_right = np.logical_and(y_right == j, mask_right)
+        if np.sum(jx_right) == 0:
+            continue
+        left_border = np.min(x_right[jx_right])
+        if left_border > right_border:
+            continue
+        else:
+            overlap_left = np.logical_and(jx_left, (x_left >= left_border))
+            overlap_right = np.logical_and(jx_right, (x_right <= right_border))
+            if left_border < right_border:
+                overlap_len = right_border - left_border
+                left_weights[overlap_left] = (-1. / overlap_len * (x_left - right_border))[overlap_left]
+                right_weights[overlap_right] = (1. / overlap_len * (x_right - left_border))[overlap_right]
+            else:
+                left_weights[overlap_left] = 0.5
+                right_weights[overlap_right] = 0.5
+    if left_is_left:
+        return left_weights, right_weights
+    else:
+        return right_weights, left_weights
+
+
+def ImageStitching(imgs_proj, imgs_proj_mask):
     matrix = np.eye(3)
     coords_y = [None]*len(imgs_proj)
     coords_x = [None]*len(imgs_proj)
@@ -153,7 +201,6 @@ def ImageStitching(imgs_proj):
             v_prime = v1[id_pairs[:, 1]]
             affine_solver = SolveAffine(threshold=0.1)
             M = RANSAC(v, v_prime, 6, 0.3, affine_solver)
-            print("M:", M)
             matrix = matrix @ np.append(M, [[0, 0, 1]], axis=0)
 
             ## coord transform  ##
@@ -166,19 +213,34 @@ def ImageStitching(imgs_proj):
             max_x = max(max_x, np.max(x0))
     new_H = max_y - min_y + 1
     new_W = max_x - min_x + 1
-    stitch_img = np.zeros((new_H, new_W, 3), dtype='uint8')
-    for i in range(len(imgs_proj)):
-        shift_y = coords_y[i] - min_y
-        shift_x = coords_x[i] - min_x
-        stitch_img[shift_y, shift_x, :] = imgs_proj[i]
-    return stitch_img
+    stitch_img = np.zeros((new_H, new_W, 3))
+    shift_y = [coords_y[0] - min_y]
+    shift_x = [coords_x[0] - min_x]
+    i_prev_w = np.ones_like(shift_y[0], dtype='float')
+    for i in range(len(imgs_proj) - 1):
+        shift_y.append(coords_y[i+1] - min_y)
+        shift_x.append(coords_x[i+1] - min_x)
+        i_w, ip1_w = BlendingWeights(shift_y[i],
+                                     shift_x[i],
+                                     imgs_proj_mask[i],
+                                     shift_y[i+1],
+                                     shift_x[i+1],
+                                     imgs_proj_mask[i+1],
+                                     new_H)
+        stitch_img[shift_y[i], shift_x[i], :] += imgs_proj[i] * (i_prev_w + i_w - 1.)[:, :, None]
+        i_prev_w = ip1_w
+    stitch_img[shift_y[-1], shift_x[-1], :] += imgs_proj[-1] * (i_prev_w)[:, :, None]
+    return stitch_img.astype('uint8')
 
 
 if __name__ == "__main__":
     imgs, fs = Load_Data('./parrington', './parrington/f.txt', '.jpg')
     imgs_proj = []
+    imgs_proj_mask = []
     for i in range(imgs.shape[0]):
-        imgs_proj.append(cylindrical_projection(imgs[i], fs[i]))
+        new_img, new_img_mask = cylindrical_projection(imgs[i], fs[i])
+        imgs_proj.append(new_img)
+        imgs_proj_mask.append(new_img_mask)
     """
     H0 = imgs_proj[0].shape[0]
     W0 = imgs_proj[0].shape[1]
@@ -212,7 +274,6 @@ if __name__ == "__main__":
     v_prime = v1[id_pairs[:, 1]]
     affine_solver = SolveAffine(threshold=0.1)
     M = RANSAC(v, v_prime, 6, 0.3, affine_solver)
-    print("M:", M)
 
     y0, x0 = GridAffineTransform(H0, W0, M)
     y1, x1 = np.mgrid[range(H1), range(W1)]
@@ -228,7 +289,7 @@ if __name__ == "__main__":
     stitch_img[y0, x0, :] = imgs_proj[0]
     stitch_img[y1, x1, :] = imgs_proj[1]
     """
-    stitch_img = ImageStitching(imgs_proj)
+    stitch_img = ImageStitching(imgs_proj, imgs_proj_mask)
 
     cv2.imwrite('stitch.jpg', stitch_img)
     """
