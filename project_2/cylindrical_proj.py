@@ -4,15 +4,18 @@ import cv2
 import os
 from data_helper import Load_Data
 
-def BiInterpn(x, y, img):
-    H, W, C= img.shape
-    tmp_img = np.zeros_like(img)
+def BiInterpn(x, y, img, H, W, C):
+    tmp_img = np.zeros((H, W, C), dtype = np.int)
     ## ramove all the illegal points
     mask = (x < 0) | (x > W - 1) | (y < 0) | (y > H - 1)
+    
     x = x[~mask]
     y = y[~mask]
+    
     x_coor, y_coor = np.meshgrid(range(W), range(H))
 
+    x_coor = x_coor[~mask]
+    y_coor = y_coor[~mask]
     ## find out all the interpolation component ##
     x_1 = np.clip(np.floor(x + 1).astype(int), 0, W - 1) # floor(x + 1) to avoid ceil(x) == floor(x)
     x_0 = np.clip(np.floor(x).astype(int), 0, W - 1)
@@ -25,17 +28,11 @@ def BiInterpn(x, y, img):
     b = (x_1 - x) * (y - y_0)
     c = (x - x_0) * (y_1 - y)
     d = (x_1 - x) * (y_1 - y)
-    tmp_img[y_coor.ravel()[~mask], x_coor.ravel()[~mask], :] = (a[..., None] * img[y_1, x_1, :]) \
+    tmp_img[y_coor, x_coor, :] = (a[..., None] * img[y_1, x_1, :]) \
             + (b[..., None] * img[y_1, x_0, :]) + (c[..., None] * img[y_0, x_1, :]) + (d[..., None] * img[y_0, x_0, :])
-
-    x_min = np.amin(x_coor.ravel()[~mask])
-    x_max = np.amax(x_coor.ravel()[~mask])
-    new_W = x_max - x_min + 1
-    
-    new_img = np.zeros((H, new_W, C), dtype = np.int) 
-    new_img = tmp_img[:, x_min:x_max+1, :] 
-    mask = mask.reshape(H, W)[:, x_min:x_max + 1]
-    return new_img, mask
+    new_mask = np.zeros((H, W), dtype = bool)
+    new_mask[y_coor, x_coor] = True
+    return tmp_img, new_mask
         
 
 """
@@ -83,10 +80,20 @@ def inverse_cylindrical_projection(img, focal, Interpolate = True):
         new_img = tmp_img[:, x_min:x_max+1, :] 
         mask = mask.reshape(H, W)[:, x_min:x_max + 1]
     else: 
-        new_img, mask = BiInterpn(np.tile(x, H).ravel(), y.ravel(), img)
-
-
-    return new_img, np.logical_not(mask)
+        img, mask = BiInterpn(np.tile(x, [H, 1]), y, img, H, W, Ch)
+        y_coor, x_coor = np.mgrid[range(H), range(W)]
+        x_min = np.amin(x_coor[mask])
+        x_max = np.amax(x_coor[mask])
+        new_W = x_max - x_min + 1
+        
+        y_min = np.amin(y_coor[mask])
+        y_max = np.amax(y_coor[mask])
+        new_H = y_max - y_min + 1
+        
+        new_img = np.zeros((new_H, new_W, Ch), dtype = np.int) 
+        new_img = img[y_min:y_max + 1, x_min:x_max+1, :]
+        new_mask = mask[y_min:y_max + 1, x_min:x_max + 1]
+    return new_img, new_mask
 
     
 
