@@ -4,10 +4,11 @@ import cv2
 import os
 from data_helper import Load_Data
 
-def BiInterpn(x, y, img, H, W, C):
+def BiInterpn(x, y, img, H, W, C, img_mask = None):
     tmp_img = np.zeros((H, W, C), dtype = np.int)
     ## ramove all the illegal points
-    mask = (x < 0) | (x > W - 1) | (y < 0) | (y > H - 1)
+    img_h, img_w = img.shape[:2]
+    mask = (x < 0) | (x > img_w - 1) | (y < 0) | (y > img_h - 1)
     
     x = x[~mask]
     y = y[~mask]
@@ -16,12 +17,24 @@ def BiInterpn(x, y, img, H, W, C):
 
     x_coor = x_coor[~mask]
     y_coor = y_coor[~mask]
+
+
     ## find out all the interpolation component ##
-    x_1 = np.clip(np.floor(x + 1).astype(int), 0, W - 1) # floor(x + 1) to avoid ceil(x) == floor(x)
-    x_0 = np.clip(np.floor(x).astype(int), 0, W - 1)
-    y_1 = np.clip(np.floor(y + 1).astype(int), 0, H - 1)
-    y_0 = np.clip(np.floor(y).astype(int), 0, H - 1)
+    x_1 = np.clip(np.floor(x + 1).astype(int), 0, img_w - 1) # floor(x + 1) to avoid ceil(x) == floor(x)
+    x_0 = np.clip(np.floor(x).astype(int), 0, img_w - 1)
+    y_1 = np.clip(np.floor(y + 1).astype(int), 0, img_h - 1)
+    y_0 = np.clip(np.floor(y).astype(int), 0, img_h - 1)
     
+    if img_mask is not None: # need to exclude coordinate in empty region
+        mask = (~img_mask[y_0, x_0]) | (~img_mask[y_0, x_1]) | (~img_mask[y_1, x_0]) | (~img_mask[y_1, x_1])
+        x = x[~mask]
+        y = y[~mask]
+        x_coor = x_coor[~mask]
+        y_coor = y_coor[~mask]
+        x_0 = x_0[~mask]
+        x_1 = x_1[~mask]
+        y_0 = y_0[~mask]
+        y_1 = y_1[~mask]
 
     ## weighting on four region ##
     a = (x - x_0) * (y - y_0)
@@ -30,8 +43,10 @@ def BiInterpn(x, y, img, H, W, C):
     d = (x_1 - x) * (y_1 - y)
     tmp_img[y_coor, x_coor, :] = (a[..., None] * img[y_1, x_1, :]) \
             + (b[..., None] * img[y_1, x_0, :]) + (c[..., None] * img[y_0, x_1, :]) + (d[..., None] * img[y_0, x_0, :])
+    
     new_mask = np.zeros((H, W), dtype = bool)
     new_mask[y_coor, x_coor] = True
+    
     return tmp_img, new_mask
         
 
