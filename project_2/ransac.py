@@ -4,6 +4,7 @@ from random import shuffle
 
 P = 0.99
 
+
 def RANSAC(v, v_prime, n, p, solver):
     """
     Implementation of RANSAC Algorithm
@@ -25,7 +26,7 @@ def RANSAC(v, v_prime, n, p, solver):
     res_matrix = None
     for run in range(k):
         # sampling #
-        choice = [True,]*n + [False,]*(N - n)
+        choice = [True, ]*n + [False, ]*(N - n)
         shuffle(choice)
         not_choice = np.logical_not(choice)
         sample_v = v[choice]
@@ -43,5 +44,3 @@ def RANSAC(v, v_prime, n, p, solver):
     print("mean_dist: %12.6f" % min_dist)
     print("inliers:   %d/%d" % (max_cnt, N))
     return res_matrix
-
-

@@ -1,9 +1,11 @@
+import math
 import numpy as np
 import cv2
 from data_helper import Load_Data
 from ransac import RANSAC
 from feature_matching import genMatchPairs
 from MOPS import Build_pyramid
+from cylindrical_proj import Interp
 from cylindrical_proj import cylindrical_projection
 import matplotlib.pyplot as plt
 
@@ -86,7 +88,7 @@ class SolveAffine:
         num = v.shape[0]
         A = np.zeros((num*2, 6), dtype='float')
         A[np.arange(num)*2, :2] = v
-        A[np.arange(num)*2+1 , 3:5] = v
+        A[np.arange(num)*2+1, 3:5] = v
         A[range(num*2), [2, 5]*num] = 1.
         b = v_prime.reshape(-1)
         x = np.matmul(np.linalg.pinv(A), b)
@@ -115,59 +117,27 @@ class SolveAffine:
 def GridAffineTransform(H, W, matrix):
     y, x = np.mgrid[range(H), range(W)]
     coords = np.concatenate([x.reshape(-1, 1), y.reshape(-1, 1)], axis=1)
-    coords_prime = AffineTransform(coords, matrix).astype('int')
+    # coords_prime = AffineTransform(coords, matrix).astype('int')
+    coords_prime = AffineTransform(coords, matrix)
     y = coords_prime[:, 1].reshape(H, W)
     x = coords_prime[:, 0].reshape(H, W)
     return y, x
 
-
-def BlendingWeights(y0, x0, mask0, y1, x1, mask1, H):
-    if np.min(x0) < np.min(x1):
-        y_left = y0
-        x_left = x0
-        mask_left = mask0
-        y_right = y1
-        x_right = x1
-        mask_right = mask1
-        left_is_left = True
-    else:
-        y_left = y1
-        x_left = x1
-        mask_left = mask1
-        y_right = y0
-        x_right = x0
-        mask_right = mask0
-        left_is_left = False
-    left_weights = np.ones_like(y_left, dtype='float')
-    right_weights = np.ones_like(y_right, dtype='float')
-    for j in range(H):
-        #jx_left = (y_left == j)
-        jx_left = np.logical_and(y_left == j, mask_left)
-        if np.sum(jx_left) == 0:
-            continue
-        right_border = np.max(x_left[jx_left])
-        #jx_right = (y_right == j)
-        jx_right = np.logical_and(y_right == j, mask_right)
-        if np.sum(jx_right) == 0:
-            continue
-        left_border = np.min(x_right[jx_right])
-        if left_border > right_border:
-            continue
-        else:
-            overlap_left = np.logical_and(jx_left, (x_left >= left_border))
-            overlap_right = np.logical_and(jx_right, (x_right <= right_border))
-            if left_border < right_border:
-                overlap_len = right_border - left_border
-                left_weights[overlap_left] = (-1. / overlap_len * (x_left - right_border))[overlap_left]
-                right_weights[overlap_right] = (1. / overlap_len * (x_right - left_border))[overlap_right]
-            else:
-                left_weights[overlap_left] = 0.5
-                right_weights[overlap_right] = 0.5
-    if left_is_left:
-        return left_weights, right_weights
-    else:
-        return right_weights, left_weights
-
+def BlendingWeights(mask0, mask1, H, W):
+    assert mask0.shape == mask1.shape
+    weight = np.tile(range(W), (H, 1)).astype('float')
+    overlap = np.logical_and(mask0, mask1)
+    x_min = np.argmax(overlap, axis=1)
+    x_max = W - np.argmax(overlap[:, ::-1], axis=1) - 1
+    max_eq_min = (x_max == x_min)
+    length = x_max - x_min
+    weight_left = -1. * (weight - (x_max + 0.5 * max_eq_min)[:, None]) / (length + max_eq_min)[:, None]
+    weight_right = 1. - weight_left
+    weight_left[np.logical_not(overlap)] = 1.
+    weight_right[np.logical_not(overlap)] = 1.
+    if np.min(np.where(mask0 == 1)[1]) < np.min(np.where(mask1 == 1)[1]):
+        return weight_left, weight_right
+    return weight_right, weight_left
 
 def ImageStitching(imgs_proj, imgs_proj_mask):
     matrix = np.eye(3)
@@ -211,25 +181,25 @@ def ImageStitching(imgs_proj, imgs_proj_mask):
             min_x = min(min_x, np.min(x0))
             max_y = max(max_y, np.max(y0))
             max_x = max(max_x, np.max(x0))
-    new_H = max_y - min_y + 1
-    new_W = max_x - min_x + 1
+    new_H = math.ceil(max_y - min_y + 1)
+    new_W = math.ceil(max_x - min_x + 1)
     stitch_img = np.zeros((new_H, new_W, 3))
-    shift_y = [coords_y[0] - min_y]
-    shift_x = [coords_x[0] - min_x]
-    i_prev_w = np.ones_like(shift_y[0], dtype='float')
+    prev_shift_y = coords_y[0] - min_y
+    prev_shift_x = coords_x[0] - min_x
+    prev_img, prev_mask = Interp(prev_shift_y, prev_shift_x, imgs_proj[0], new_H, new_W, Ch=3, mask=imgs_proj_mask[0])
+    prev_w = np.ones((new_H, new_W), dtype='float')
     for i in range(len(imgs_proj) - 1):
-        shift_y.append(coords_y[i+1] - min_y)
-        shift_x.append(coords_x[i+1] - min_x)
-        i_w, ip1_w = BlendingWeights(shift_y[i],
-                                     shift_x[i],
-                                     imgs_proj_mask[i],
-                                     shift_y[i+1],
-                                     shift_x[i+1],
-                                     imgs_proj_mask[i+1],
-                                     new_H)
-        stitch_img[shift_y[i], shift_x[i], :] += imgs_proj[i] * (i_prev_w + i_w - 1.)[:, :, None]
-        i_prev_w = ip1_w
-    stitch_img[shift_y[-1], shift_x[-1], :] += imgs_proj[-1] * (i_prev_w)[:, :, None]
+        shift_y = coords_y[i+1] - min_y
+        shift_x = coords_x[i+1] - min_x
+        img, mask = Interp(shift_y, shift_x, imgs_proj[i+1], new_H, new_W, Ch=3, mask=imgs_proj_mask[i+1])
+        w_im1, w = BlendingWeights(prev_mask, mask, new_H, new_W)
+        stitch_img += prev_img * (prev_w + w_im1 - 1.)[:, :, None]
+        prev_shift_y = shift_y
+        prev_shift_x = shift_x
+        prev_img = img
+        prev_mask = mask
+        prev_w = w
+    stitch_img += prev_img * (prev_w)[:, :, None]
     return stitch_img.astype('uint8')
 
 
