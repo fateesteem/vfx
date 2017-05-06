@@ -267,7 +267,7 @@ def ImageStitching(imgs_proj, imgs_proj_mask):
             v = v0[id_pairs[:, 0]]
             v_prime = v1[id_pairs[:, 1]]
             affine_solver = SolveAffine(threshold=0.1)
-            M = RANSAC(v, v_prime, 5, 0.2, affine_solver)
+            M = RANSAC(v, v_prime, 6, 0.3, affine_solver)
             matrix = matrix @ np.append(M, [[0, 0, 1]], axis=0)
             matrices[i] = matrix
 
@@ -306,7 +306,8 @@ def ImageStitching(imgs_proj, imgs_proj_mask):
             i_prev_w = np.zeros_like(images_mask[i], dtype = 'float')
             i_prev_w[images_mask[i]] = 1. 
     stitch_img[images_mask[-1], :] += (i_prev_w)[images_mask[-1], None] * tmp_imgs[-1][images_mask[-1], :]
-    
+    #stitch_img[images_mask[1], :] += (i_prev_w)[images_mask[1], None] * tmp_imgs[1][images_mask[1], :]
+    stitch_img = PoissonBlending(stitch_img, images_mask, tmp_imgs)
     
     return stitch_img.astype('uint8')
 

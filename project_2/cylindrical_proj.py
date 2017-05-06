@@ -8,7 +8,7 @@ def BiInterpn(x, y, img, H, W, C, img_mask = None):
     tmp_img = np.zeros((H, W, C), dtype = np.int)
     ## ramove all the illegal points
     img_h, img_w = img.shape[:2]
-    mask = (x < 0) | (x > img_w - 1) | (y < 0) | (y > img_h - 1)
+    mask = (x < 0) | (x >= img_w - 1) | (y < 0) | (y >= img_h - 1)
     
     x = x[~mask]
     y = y[~mask]
@@ -20,12 +20,13 @@ def BiInterpn(x, y, img, H, W, C, img_mask = None):
 
 
     ## find out all the interpolation component ##
-    x_1 = np.clip(np.floor(x + 1).astype(int), 0, img_w - 1) # floor(x + 1) to avoid ceil(x) == floor(x)
-    x_0 = np.clip(np.floor(x).astype(int), 0, img_w - 1)
-    y_1 = np.clip(np.floor(y + 1).astype(int), 0, img_h - 1)
-    y_0 = np.clip(np.floor(y).astype(int), 0, img_h - 1)
+    x_1 = np.floor(x + 1).astype(int) # floor(x + 1) to avoid ceil(x) == floor(x)
+    x_0 = np.floor(x).astype(int)
+    y_1 = np.floor(y + 1).astype(int)
+    y_0 = np.floor(y).astype(int)
     
     if img_mask is not None: # need to exclude coordinate in empty region
+        assert img.shape[:2] == img_mask.shape[:2]
         mask = (~img_mask[y_0, x_0]) | (~img_mask[y_0, x_1]) | (~img_mask[y_1, x_0]) | (~img_mask[y_1, x_1])
         x = x[~mask]
         y = y[~mask]
