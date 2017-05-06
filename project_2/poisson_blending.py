@@ -44,10 +44,11 @@ def PoissonBlendingWeights(mask0, mask1, H):
         return right_weights, left_weights
 def PoissonBlending(stitch_img, masks, imgs):
     H, W = stitch_img.shape[:2]
+    stitch_img = stitch_img.astype('float')
     for l in range(len(imgs) - 1):
-        src_img = imgs[l]
+        src_img = imgs[l].astype('float')
         src_mask = masks[l]
-        tar_img = imgs[l + 1]
+        tar_img = imgs[l + 1].astype('float')
         tar_mask = masks[l + 1]
         blending_mask = (src_mask) & (tar_mask)
         fill_mask = (src_mask) | (tar_mask)
