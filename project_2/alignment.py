@@ -6,6 +6,7 @@ from ransac import RANSAC
 from feature_matching import genMatchPairs
 from MOPS import Build_pyramid
 from cylindrical_proj import inverse_cylindrical_projection, BiInterpn
+from poisson_blending import PoissonBlending
 import matplotlib.pyplot as plt
 
 

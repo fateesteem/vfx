@@ -8,7 +8,6 @@ from MOPS import Build_pyramid
 from data_helper import Load_Data
 from feature_matching import genMatchPairs
 from cylindrical_proj import inverse_cylindrical_projection, BiInterpn
-from alignment import * 
 
 
 def PoissonBlendingWeights(mask0, mask1, H):
