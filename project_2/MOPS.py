@@ -1,9 +1,5 @@
 import cv2
 import numpy as np
-import matplotlib
-from matplotlib import pyplot as plt
-from cylindrical_proj import *
-from data_helper import *
 from MOPS_feature import FeaturePoint
 
 EPS = 1.0e-10
