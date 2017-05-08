@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from alignment_helper import SolveAffine, GridAffineTransform
 from data_helper import Load_Data
 from ransac import RANSAC
@@ -41,7 +42,7 @@ def ImageStitching(imgs_proj, imgs_proj_mask, btype = 'Linear'):
             v = v0[id_pairs[:, 0]]
             v_prime = v1[id_pairs[:, 1]]
             affine_solver = SolveAffine(threshold=0.1)
-            M = RANSAC(v, v_prime, 6, 0.3, affine_solver)
+            M = RANSAC(v, v_prime, 6, 0.18, affine_solver)
             matrix = matrix @ np.append(M, [[0, 0, 1]], axis=0)
             matrices[i] = matrix
 
@@ -52,8 +53,8 @@ def ImageStitching(imgs_proj, imgs_proj_mask, btype = 'Linear'):
             max_y = max(max_y, np.max(y0))
             max_x = max(max_x, np.max(x0))
     ## estimates new image ##
-    new_H = max_y - min_y + 1
-    new_W = max_x - min_x + 1
+    new_H = math.ceil(max_y - min_y + 1)
+    new_W = math.ceil(max_x - min_x + 1)
     stitch_img = np.zeros((new_H, new_W, 3))
     i_prev_w = None
     for i in range(len(imgs_proj)):

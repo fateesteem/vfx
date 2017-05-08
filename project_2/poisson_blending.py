@@ -98,26 +98,24 @@ def PoissonBlending(stitch_img, masks, imgs):
                             else: # on the boundary
                                 v_pq +=stitch_img[j+1, i, :] + (f_p-f_q, g_p-g_q)[~src_mask[j+1, i]]
                             N_p += 1.0
-                    if(i > 0):
-                        if(fill_mask[j, i - 1]): #left neighbor exists
-                            f_q = src[j, i-1, :]
-                            g_q = tar[j, i-1, :]
-                            if(blending_mask[j, i-1]): # in the omega
-                                v_pq += [alpha, 1-alpha]@np.array([(f_p-f_q), (g_p-g_q)])
-                                A[cur_ptr, loc_map[(j, i-1)]] = -1.0
-                            else: # on the boundary
-                                v_pq +=stitch_img[j, i-1, :] + (f_p-f_q, g_p-g_q)[~src_mask[j, i-1]]
-                            N_p += 1.0
-                    if(i > W - 1):
-                        if(fill_mask[j, i + 1]): #right neighbor exists
-                            f_q = src[j, i+1, :]
-                            g_q = tar[j, i+1, :]
-                            if(blending_mask[j, i+1]): # in the omega
-                                v_pq += [alpha, 1-alpha]@np.array([(f_p-f_q), (g_p-g_q)])
-                                A[cur_ptr, loc_map[(j, i+1)]] = -1.0
-                            else: # on the boundary
-                                v_pq +=stitch_img[j, i+1, :] + (f_p-f_q, g_p-g_q)[~src_mask[j, i+1]]
-                            N_p += 1.0
+                    if(fill_mask[j, i - 1]): #left neighbor exists
+                        f_q = src[j, i-1, :]
+                        g_q = tar[j, i-1, :]
+                        if(blending_mask[j, i-1]): # in the omega
+                            v_pq += [alpha, 1-alpha]@np.array([(f_p-f_q), (g_p-g_q)])
+                            A[cur_ptr, loc_map[(j, i-1)]] = -1.0
+                        else: # on the boundary
+                            v_pq +=stitch_img[j, i-1, :] + (f_p-f_q, g_p-g_q)[~src_mask[j, i-1]]
+                        N_p += 1.0
+                    if(fill_mask[j, i + 1]): #right neighbor exists
+                        f_q = src[j, i+1, :]
+                        g_q = tar[j, i+1, :]
+                        if(blending_mask[j, i+1]): # in the omega
+                            v_pq += [alpha, 1-alpha]@np.array([(f_p-f_q), (g_p-g_q)])
+                            A[cur_ptr, loc_map[(j, i+1)]] = -1.0
+                        else: # on the boundary
+                            v_pq +=stitch_img[j, i+1, :] + (f_p-f_q, g_p-g_q)[~src_mask[j, i+1]]
+                        N_p += 1.0
                     A[cur_ptr, cur_ptr] = N_p
                     b[cur_ptr, :] = v_pq.astype('float')
                 else: # not in blending region
