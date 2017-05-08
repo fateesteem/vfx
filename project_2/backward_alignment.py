@@ -79,5 +79,4 @@ def ImageStitching(imgs_proj, imgs_proj_mask, btype = 'Linear'):
     #stitch_img[images_mask[1], :] += (i_prev_w)[images_mask[1], None] * tmp_imgs[1][images_mask[1], :]
     if btype == 'Poisson':
         stitch_img = PoissonBlending(stitch_img, images_mask, tmp_imgs)
-    
     return stitch_img.astype('uint8')

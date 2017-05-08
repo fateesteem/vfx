@@ -3,7 +3,6 @@ import numpy as np
 import cv2
 from data_helper import Load_Data
 
-
 if __name__ == '__main__':
     ## argument parse ##
     parser = argparse.ArgumentParser(description="Create Panorama!")
@@ -33,6 +32,9 @@ if __name__ == '__main__':
     if method == 'backward':
         from inverse_cylindrical_proj import inverse_cylindrical_projection as cylindrical_projection
         from backward_alignment import ImageStitching
+    elif method == 'forward':
+        from cylindrical_proj import cylindrical_projection
+        from forward_alignment import ImageStitching
     
     for i in range(imgs.shape[0]):
         new_img, new_img_mask = cylindrical_projection(imgs[i], fs[i])
@@ -40,6 +42,7 @@ if __name__ == '__main__':
         imgs_proj_mask.append(new_img_mask)
 
     stitch_img = ImageStitching(imgs_proj, imgs_proj_mask, btype = blending_type)
+
     cv2.imwrite(output, stitch_img)
 
     if is_show:

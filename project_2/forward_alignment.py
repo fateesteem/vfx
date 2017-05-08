@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from alignment_helper import SolveAffine, GridAffineTransform
 from data_helper import Load_Data
 from ransac import RANSAC
@@ -23,7 +24,7 @@ def BlendingWeights(mask0, mask1, H, W):
         return weight_left, weight_right
     return weight_right, weight_left
 
-def ImageStitching(imgs_proj, imgs_proj_mask):
+def ImageStitching(imgs_proj, imgs_proj_mask, btype = 'Linear'):
     matrix = np.eye(3)
     coords_y = [None]*len(imgs_proj)
     coords_x = [None]*len(imgs_proj)
@@ -31,6 +32,8 @@ def ImageStitching(imgs_proj, imgs_proj_mask):
     min_x = 0
     max_y = 0
     max_x = 0
+    tmp_imgs = [None]*len(imgs_proj)
+    images_mask = [None]*len(imgs_proj)
     for i in range(len(imgs_proj)-1, -1, -1):
         H = imgs_proj[i].shape[0]
         W = imgs_proj[i].shape[1]
@@ -71,6 +74,8 @@ def ImageStitching(imgs_proj, imgs_proj_mask):
     prev_shift_y = coords_y[0] - min_y
     prev_shift_x = coords_x[0] - min_x
     prev_img, prev_mask = Interp(prev_shift_y, prev_shift_x, imgs_proj[0], new_H, new_W, Ch=3, mask=imgs_proj_mask[0])
+    tmp_imgs[0] = prev_img
+    images_mask[0] = prev_mask
     prev_w = np.ones((new_H, new_W), dtype='float')
     for i in range(len(imgs_proj) - 1):
         shift_y = coords_y[i+1] - min_y
@@ -81,8 +86,12 @@ def ImageStitching(imgs_proj, imgs_proj_mask):
         prev_shift_y = shift_y
         prev_shift_x = shift_x
         prev_img = img
+        tmp_imgs[i+1] = img
         prev_mask = mask
+        images_mask[i+1] = mask
         prev_w = w
     stitch_img += prev_img * (prev_w)[:, :, None]
+    if btype == 'Poisson':
+        stitch_img = PoissonBlending(stitch_img, images_mask, tmp_imgs)
 
     return stitch_img.astype('uint8')
