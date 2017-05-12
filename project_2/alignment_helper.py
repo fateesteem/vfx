@@ -3,7 +3,62 @@ import numpy as np
 from numpy.linalg import inv
 import cv2
 import matplotlib.pyplot as plt
+from MOPS import Build_pyramid
+from feature_matching import genMatchPairs
+from inverse_cylindrical_proj import BiInterpn
+from ransac import RANSAC
 
+
+def drift_adjustment(last_img, first_img, matrix, stitch_img, stitch_img_mask, solver):
+    H, W = stitch_img.shape[:2]
+
+    feats0 = Build_pyramid(last_img)
+    feats1 = Build_pyramid(first_img)
+    v0 = np.array([[feat.x, feat.y] for feat in feats0])
+    v1 = np.array([[feat.x, feat.y] for feat in feats1])
+    des0 = np.array([feat.descriptor for feat in feats0])
+    des1 = np.array([feat.descriptor for feat in feats1])
+
+    ## self implemented matching ##
+    id_pairs = genMatchPairs(des0, des1, k=2, p=2)
+    
+    ## calc transform matrix ##
+    v = v0[id_pairs[:, 0]]
+    v_prime = v1[id_pairs[:, 1]]
+
+    if solver == 'Affine':
+        affine_solver = SolveAffine(threshold=0.1)
+    elif solver == 'Translation':
+        affine_solver = SolveTranslation(threshold=0.1)
+    M = RANSAC(v, v_prime, 6, 0.3, affine_solver)
+    matrix = matrix @ np.append(M, [[0, 0, 1]], axis=0)
+
+    y_shift = matrix[1, 2]
+    a = -1.0 * y_shift / W
+    M = np.array([[1, 0, 0], [a, 1, 0], [0, 0, 1]], dtype = 'float')
+
+    y0, x0 = GridAffineTransform(H, W, M[:2, :])
+    min_y = np.min(y0)
+    min_x = np.min(x0)
+    max_y = np.max(y0)
+    max_x = np.max(x0)
+    ## estimates new image ##
+    new_H = math.ceil(max_y - min_y + 1)
+    new_W = math.ceil(max_x - min_x + 1)
+    new_stitch_img = np.zeros((new_H, new_W, 3))
+    y_org, x_org = GridAffineTransform(new_H, new_W, np.linalg.inv(M)[:2, :])
+    new_stitch_img, mask = BiInterpn(x_org, y_org, stitch_img, new_H, new_W, 3, stitch_img_mask)
+    ## crop ##
+    
+    y_coor, x_coor = np.mgrid[range(new_H), range(new_W)]
+    x_min = np.amin(x_coor[mask])
+    x_max = np.amax(x_coor[mask])
+
+    y_min = np.amin(y_coor[mask])
+    y_max = np.amax(y_coor[mask])
+    stitch_img = new_stitch_img[y_min:y_max+1, x_min:x_max+1, :]
+    #stitch_img = cv2.warpAffine(stitch_img, M, (W, H))
+    return stitch_img
 
 def AffineTransform(v, M):
     """
@@ -71,6 +126,39 @@ class SolveLine:
             raise Exception("Transform matrix has not been solved!")
         return self.matrix
 
+
+class SolveTranslation:
+    def __init__(self, threshold):
+        self.matrix = None
+        self.threshold = threshold
+
+    def solve(self, v, v_prime):
+        assert v.shape[0] == v_prime.shape[0]
+        assert v.shape[1] == 2 and v_prime.shape[1] == 2
+        num = v.shape[0]
+        t = np.mean(v_prime - v, axis = 0)
+        self.matrix = np.eye(3)
+        self.matrix[:2, 2] = t
+        self.matrix = self.matrix[:2, :3]
+
+    def count(self, v, v_prime):
+        if self.matrix is None:
+            raise Exception("Transform matrix has not been solved!")
+        assert v.shape[0] == v_prime.shape[0]
+        assert v.shape[1] == 2 and v_prime.shape[1] == 2
+        threshold = self.threshold
+        v_prime_calc = AffineTransform(v, self.matrix)
+        dists = (np.sum((v_prime - v_prime_calc)**2, axis=1))**0.5
+        is_inlier = dists < threshold
+        if np.any(is_inlier):
+            return np.sum(is_inlier), np.mean(dists[is_inlier])
+        else:
+            return np.sum(is_inlier), np.inf
+
+    def getMatrix(self):
+        if self.matrix is None:
+            raise Exception("Transform matrix has not been solved!")
+        return self.matrix
 
 class SolveAffine:
     def __init__(self, threshold):
