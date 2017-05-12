@@ -28,8 +28,8 @@ def ImageStitching(imgs_proj, imgs_proj_mask, btype = 'Linear'):
             max_x = W - 1
         else:
             ## MOPS features ##
-            feats0 = Build_pyramid(imgs_proj[i])
-            feats1 = Build_pyramid(imgs_proj[i+1])
+            feats0 = Build_pyramid(imgs_proj_mask[i], imgs_proj[i])
+            feats1 = Build_pyramid(imgs_proj_mask[i+1], imgs_proj[i+1])
             v0 = np.array([[feat.x, feat.y] for feat in feats0])
             v1 = np.array([[feat.x, feat.y] for feat in feats1])
             des0 = np.array([feat.descriptor for feat in feats0])

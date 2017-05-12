@@ -42,9 +42,11 @@ def cylindrical_projection(img, focal):
 
     # x += x_center
     x -= np.amin(x)
-    y += y_center
-    new_W = (np.amax(np.ceil(x)) - np.amin(np.floor(x)) + 1).astype(int)
-    new_img, new_img_mask = Interp(y, np.tile(x, (H, 1)), img, H, new_W, Ch)
+    #y += y_center
+    y -= np.amin(y)
+    new_W = (np.amax(np.ceil(x)) - np.amin(np.floor(x)) + 2).astype(int)
+    new_H = (np.amax(np.ceil(y)) - np.amin(np.floor(y)) + 2).astype(int)
+    new_img, new_img_mask = Interp(y, np.tile(x, (H, 1)), img, new_H, new_W, Ch)
     """
     #new_img = interpolate(img, np.tile(x, H), y.ravel()).reshape(H, W, Ch).astype(np.uint8)
     new_W = (np.amax(np.floor(x)) - np.amin(np.floor(x)) + 1).astype(int)
@@ -57,7 +59,7 @@ def cylindrical_projection(img, focal):
 
 
 if __name__ == '__main__':
-    imgs, fs = Load_Data('parrington', 'parrington/f.txt', '.jpg')
+    imgs, fs = Load_Data('./photos/MHa', './photos/MHa/f.txt', '.JPG')
     img_proj = []
     img_proj_mask = []
     for i in range(imgs.shape[0]):
