@@ -1,7 +1,8 @@
 import cv2
 import numpy as np
 from MOPS_feature import FeaturePoint
-
+from data_helper import Load_Data
+from inverse_cylindrical_proj import inverse_cylindrical_projection
 EPS = 1.0e-10
 
 """
@@ -16,12 +17,14 @@ Build image pyramid:
     Returns:
         list of feature points
 """
-def Build_pyramid(img, l = 3, verbose = False):
+def Build_pyramid(img_mask, img, l = 6, verbose = False):
     init_H, init_W = img.shape[:2]
     img_gray = (img[:, :, :3] @ [0.114, 0.587, 0.299])
     imgs_pyramid = [img_gray]
+    imgs_mask_pyramid = [img_mask]
     for i in range(l):
         imgs_pyramid.append(cv2.GaussianBlur(imgs_pyramid[i], None, 1.0)[::2, ::2])
+        imgs_mask_pyramid.append(imgs_mask_pyramid[i][::2, ::2])
     tot_W = 0
     for i in range(l):
         tot_W += imgs_pyramid[i].shape[1]
@@ -29,7 +32,7 @@ def Build_pyramid(img, l = 3, verbose = False):
     feature_points = []
     for i in range(l):
         print('processing level {} ...'.format(i))
-        feature_pts_loc = feature_detect(imgs_pyramid[i])
+        feature_pts_loc = feature_detect(imgs_mask_pyramid[i], imgs_pyramid[i])
         feature_points += feature_descriptor(feature_pts_loc, i, imgs_pyramid[i])
 
     print('{} feature points collected !'.format(len(feature_points)))
@@ -41,29 +44,30 @@ def Build_pyramid(img, l = 3, verbose = False):
             img_tot[:H, W_acc:W_acc + W] = imgs_pyramid[i]
             W_acc += W
         img_tot = np.dstack([img_tot] * 3)
+        ct=0
         for pt in feature_points:
+            ct +=1
             level = pt.level
             orientation = pt.orientation
             cv2.circle(img_tot, ((pt.x >> level) + int(init_W*(2 * (1 - 2 ** (-1 * level)))), pt.y >> level), 1, (255 >> (level + 1) ,0 , 255 >> level), -1)
-            """
-            if level == -1:
+            if level == 0 and ct%10 == 0:
                 x, y = np.meshgrid(range(-20, 21, 40), range(-20, 21, 40))
                 rotation = np.array([[orientation[0], -1 * orientation[1]], [orientation[1], orientation[0]]])
                 x <<= level # [-20, 20, -20, 20]
                 y <<= level # [-20, -20, 20, 20]
                 transformed_point = rotation @ np.array([x.ravel(), y.ravel()]) + [[pt.x], [pt.y]]
                 sample_coor = np.int32(np.rint(transformed_point))
-                cv2.line(draw_img, (pt.x, pt.y), ((sample_coor[0][1] + sample_coor[0][3]) >> 1, (sample_coor[1][1] + sample_coor[1][3]) >> 1), 
-                        (0, 0, 255))
-                cv2.line(draw_img, (sample_coor[0][0], sample_coor[1][0]), (sample_coor[0][1], sample_coor[1][1]), (0, 0, 255), 1)
-                cv2.line(draw_img, (sample_coor[0][1], sample_coor[1][1]), (sample_coor[0][3], sample_coor[1][3]), (0, 0, 255), 1)
-                cv2.line(draw_img, (sample_coor[0][3], sample_coor[1][3]), (sample_coor[0][2], sample_coor[1][2]), (0, 0, 255), 1)
-                cv2.line(draw_img, (sample_coor[0][2], sample_coor[1][2]), (sample_coor[0][0], sample_coor[1][0]), (0, 0, 255), 1)
-            """
+                cv2.line(img_tot, (pt.x, pt.y), ((sample_coor[0][1] + sample_coor[0][3]) >> 1, (sample_coor[1][1] + sample_coor[1][3]) >> 1), 
+                        (0, 0, 255), 2)
+                cv2.line(img_tot, (sample_coor[0][0], sample_coor[1][0]), (sample_coor[0][1], sample_coor[1][1]), (0, 0, 255), 2)
+                cv2.line(img_tot, (sample_coor[0][1], sample_coor[1][1]), (sample_coor[0][3], sample_coor[1][3]), (0, 0, 255), 2)
+                cv2.line(img_tot, (sample_coor[0][3], sample_coor[1][3]), (sample_coor[0][2], sample_coor[1][2]), (0, 0, 255), 2)
+                cv2.line(img_tot, (sample_coor[0][2], sample_coor[1][2]), (sample_coor[0][0], sample_coor[1][0]), (0, 0, 255), 2)
         cv2.imshow('pyramid', img_tot.astype(np.uint8))
+        cv2.imwrite('pyramid.jpg', img_tot.astype(np.uint8))
     return feature_points    
 """
-Adaptive non-maximal supression:
+Adaptive non-maximal suppression:
 
     Given a response map with only local maxima in a certain neighborhood,
     first we need to sort them in descending order, then calcuating the distance
@@ -78,7 +82,7 @@ Adaptive non-maximal supression:
     Returns:
         coordinates of local maximas within radius which satifies supression condition
 """
-def ANMS(candidate, max_N=500):
+def ANMS(candidate, max_N=700):
     N = np.count_nonzero(candidate)
     ## extract coordinate of each candidate in tuple form ##
     can_loc_tup = candidate.nonzero()
@@ -171,13 +175,15 @@ Feature detection:
     Returns:
         numpy array of feature points location
 """
-def feature_detect(img):
+def feature_detect(img_mask, img):
     H, W = img.shape[:2]
     org_img = np.dstack([img] * 3)
+    img_mask = cv2.dilate(np.logical_not(img_mask).astype(np.uint8), np.ones((41,41)))
+    img_mask = np.logical_not((img_mask).astype(bool))
     gradient_img = np.zeros((H, W, 2))
     gradient_img[..., 1], gradient_img[..., 0] = np.gradient(img)
-    gradient_img[..., 0] = cv2.GaussianBlur(gradient_img[..., 0], None, 1.0)
-    gradient_img[..., 1] = cv2.GaussianBlur(gradient_img[..., 1], None, 1.0)
+    gradient_img[..., 0] = cv2.GaussianBlur(gradient_img[..., 0], None, 1.0) * img_mask
+    gradient_img[..., 1] = cv2.GaussianBlur(gradient_img[..., 1], None, 1.0) * img_mask
     Hess = cv2.GaussianBlur(np.repeat(gradient_img, [2, 2], axis = 2) \
             * np.dstack([gradient_img, gradient_img]), None, 1.5) #[xx, xy, yx, yy]
 
@@ -256,7 +262,7 @@ def feature_descriptor(feature_pts_lct, level, img):
         ## first we setting all the sample index on spatial acting like stride 5##
         x, y = np.meshgrid(range(-18, 18, 5), range(-18, 18, 5)) # choose central point as index may be more stable
         ## apply transform on this sample points ##
-        transformed_point = rotation @ np.array([x.ravel(), y.ravel()]) + [[pt_x], [pt_y]] #[[x_coor], [y_coor]]
+        transformed_point = rotation @ np.array([x.ravel(), y.ravel()]) + np.array([[pt_x], [pt_y]]) #[[x_coor], [y_coor]]
         sample_coor = np.int32(np.rint(transformed_point))
         descriptor = sampled_img[sample_coor[1], sample_coor[0]]
         ## normalization ##
@@ -266,10 +272,17 @@ def feature_descriptor(feature_pts_lct, level, img):
     return feature_points
 
 if __name__ == '__main__':
-    imgs, fs = Load_Data('parrington', 'parrington/f.txt', '.jpg')
-    img_proj = []
-    feature_points = Build_pyramid(imgs[1], verbose = True)
-    draw_img = cv2.copyMakeBorder(imgs[1],0,0,0,0,cv2.BORDER_REPLICATE)
+    #imgs, fs = Load_Data('./photos/bridge', './photos/bridge/f.txt', '.JPG')
+    imgs, fs = Load_Data('./parrington', './parrington/f.txt', '.jpg')
+    imgs_proj = []
+    imgs_proj_mask = []
+    fs /= 5
+    for i in range(1):
+        new_img, new_img_mask = inverse_cylindrical_projection(imgs[i], fs[i])
+        imgs_proj.append(new_img)
+        imgs_proj_mask.append(new_img_mask)
+    feature_points = Build_pyramid(imgs_proj_mask[0], imgs_proj[0], verbose = True)
+    draw_img = cv2.copyMakeBorder(imgs_proj[0],0,0,0,0,cv2.BORDER_REPLICATE)
     for pt in feature_points:
         level = pt.level
         orientation = pt.orientation
