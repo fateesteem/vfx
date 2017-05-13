@@ -68,7 +68,7 @@ def PoissonBlending(stitch_img, masks, imgs):
         A = scipy.sparse.identity(N, format='lil')
         b = np.zeros((N, 3), dtype='float')
         for (j, i) in zip(loc[0], loc[1]):
-                alpha = w_l[j, i]
+                alpha = 1.0#w_l[j, i]
                 cur_ptr = loc_map[(j, i)]
                 if(blending_mask[j, i]):
                     N_p = 0.0
@@ -122,7 +122,7 @@ def PoissonBlending(stitch_img, masks, imgs):
                     raise Exception('Illegal image!!')
         A = A.tocsr()
         for c in range(3):
-            x = pyamg.solve(A, b[:, c], verb=False, tol=1e-10)
+            x = pyamg.solve(A, b[:, c], verb=False, tol=1e-5)
             x = np.clip(x, 0, 255)
             res[:, c] = x
         stitch_img[blending_mask, :] = res

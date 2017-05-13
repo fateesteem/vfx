@@ -164,17 +164,18 @@ def cylindrical_projection(img, focal):
 
 
 if __name__ == '__main__':
-    imgs, fs = Load_Data('parrington', 'parrington/f.txt', '.jpg')
+    imgs, fs = Load_Data('./photos/riverside', './photos/riverside/f.txt', '.JPG')
     img_proj = []
     img_proj_mask = []
-    
+    fs *= 8
+    """
     for i in range(imgs.shape[0]):
         new_img, new_img_mask = cylindrical_projection(imgs[i], fs[i])
         img_proj.append(new_img)
         img_proj_mask.append(new_img_mask)
-    
+    """
     img, mask= inverse_cylindrical_projection(imgs[1], fs[1])
-    cv2.imshow('old', imgs[0])
+    cv2.imshow('old', imgs[1])
     
     #cv2.imwrite('cy.jpg', (img_proj[1]*img_proj_mask[1][:,:,None]).astype('uint8'))
     cv2.imwrite('cy.jpg', (img * mask[:,:,None]).astype('uint8'))

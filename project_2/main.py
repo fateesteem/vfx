@@ -13,6 +13,8 @@ if __name__ == '__main__':
     parser.add_argument("-m", "--method", help="Algorithm for coordinate transform", default='forward')
     parser.add_argument("-b", "--blending", help="Algorithm for image blending", default='Linear')
     parser.add_argument("-v", "--verbose", help="plot feature points", default=False)
+    parser.add_argument("-s", "--solver", help="Transform type", default='Affine')
+    parser.add_argument("-d", "--drift", help="Solving drifting", default=False)
     args = parser.parse_args()
 
     ## set arguments ##
@@ -23,12 +25,14 @@ if __name__ == '__main__':
     method = args.method
     blending_type = args.blending
     verbose = args.verbose
-    is_show = True 
+    solver = args.solver
+    drift = args.drift
+    is_show = False 
     
     imgs, fs = Load_Data(imgs_dir, f_filename, img_type)
     imgs_proj = []
     imgs_proj_mask = []
-
+    fs *= 10
     if method == 'backward':
         from inverse_cylindrical_proj import inverse_cylindrical_projection as cylindrical_projection
         from backward_alignment import ImageStitching
@@ -41,7 +45,11 @@ if __name__ == '__main__':
         imgs_proj.append(new_img)
         imgs_proj_mask.append(new_img_mask)
 
-    stitch_img = ImageStitching(imgs_proj, imgs_proj_mask, btype = blending_type)
+    stitch_img = ImageStitching(imgs_proj, 
+                                imgs_proj_mask, 
+                                btype = blending_type, 
+                                solver = solver, 
+                                drift = drift)
 
     cv2.imwrite(output, stitch_img)
 

@@ -197,8 +197,11 @@ class SolveAffine:
         return self.matrix
 
 
-def GridAffineTransform(H, W, matrix):
+def GridAffineTransform(H, W, matrix, shift_x=None, shift_y=None):
     y, x = np.mgrid[range(H), range(W)]
+    if shift_x is not None and shift_y is not None:
+        y += shift_y
+        x += shift_x
     coords = np.concatenate([x.reshape(-1, 1), y.reshape(-1, 1)], axis=1)
     # coords_prime = AffineTransform(coords, matrix).astype('int')
     coords_prime = AffineTransform(coords, matrix)
