@@ -1,6 +1,6 @@
 import numpy as np
 import math
-from alignment_helper import SolveAffine, GridAffineTransform
+from alignment_helper import SolveAffine, GridAffineTransform, SolveTranslation
 from data_helper import Load_Data
 from ransac import RANSAC
 from feature_matching import genMatchPairs
@@ -24,7 +24,7 @@ def BlendingWeights(mask0, mask1, H, W):
         return weight_left, weight_right
     return weight_right, weight_left
 
-def ImageStitching(imgs_proj, imgs_proj_mask, btype = 'Linear'):
+def ImageStitching(imgs_proj, imgs_proj_mask, btype = 'Linear', solver = 'Affine', drift = False):
     matrix = np.eye(3)
     coords_y = [None]*len(imgs_proj)
     coords_x = [None]*len(imgs_proj)
@@ -56,7 +56,10 @@ def ImageStitching(imgs_proj, imgs_proj_mask, btype = 'Linear'):
             ## calc transform matrix ##
             v = v0[id_pairs[:, 0]]
             v_prime = v1[id_pairs[:, 1]]
-            affine_solver = SolveAffine(threshold=0.1)
+            if solver == 'Affine':
+                affine_solver = SolveAffine(threshold=1.0)
+            elif solver == 'Translation':
+                affine_solver = SolveTranslation(threshold=1.0)
             M = RANSAC(v, v_prime, 6, 0.18, affine_solver)
             matrix = matrix @ np.append(M, [[0, 0, 1]], axis=0)
 
@@ -93,5 +96,8 @@ def ImageStitching(imgs_proj, imgs_proj_mask, btype = 'Linear'):
     stitch_img += prev_img * (prev_w)[:, :, None]
     if btype == 'Poisson':
         stitch_img = PoissonBlending(stitch_img, images_mask, tmp_imgs)
-
+    if drift:
+        for mask in images_mask:
+            stitch_img_mask |= mask
+        stitch_img = drift_adjustment(imgs_proj_mask[-1], imgs_proj_mask[0], imgs_proj[-1], imgs_proj[0], matrix, stitch_img, stitch_img_mask, solver)
     return stitch_img.astype('uint8')
