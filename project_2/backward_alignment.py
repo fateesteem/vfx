@@ -97,5 +97,5 @@ def ImageStitching(imgs_proj, imgs_proj_mask, btype = 'Linear', solver = 'Affine
     if drift:
         for mask in images_mask:
             stitch_img_mask |= mask
-        stitch_img = drift_adjustment(imgs_proj[-1], imgs_proj[0], matrix, stitch_img, stitch_img_mask, solver)
+        stitch_img = drift_adjustment(imgs_proj_mask[-1], imgs_proj_mask[0], imgs_proj[-1], imgs_proj[0], matrix, stitch_img, stitch_img_mask, solver)
     return stitch_img.astype('uint8')

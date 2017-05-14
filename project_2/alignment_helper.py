@@ -9,11 +9,11 @@ from inverse_cylindrical_proj import BiInterpn
 from ransac import RANSAC
 
 
-def drift_adjustment(last_img, first_img, matrix, stitch_img, stitch_img_mask, solver):
+def drift_adjustment(last_img_mask, first_img_mask, first_img, matrix, stitch_img, stitch_img_mask, solver):
     H, W = stitch_img.shape[:2]
 
-    feats0 = Build_pyramid(last_img)
-    feats1 = Build_pyramid(first_img)
+    feats0 = Build_pyramid(last_img_mask, last_img)
+    feats1 = Build_pyramid(first_img_mask, first_img)
     v0 = np.array([[feat.x, feat.y] for feat in feats0])
     v1 = np.array([[feat.x, feat.y] for feat in feats1])
     des0 = np.array([feat.descriptor for feat in feats0])
