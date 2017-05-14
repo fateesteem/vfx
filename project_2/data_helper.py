@@ -14,8 +14,8 @@ def Load_Data(imgs_dir, focal_file, img_type):
     images = []
     focal_lengths = []
     for file in sorted(os.listdir(imgs_dir)):
-        if file.endswith(img_type) and not file.startswith('._') and len(file) == 10:
-            f = f_map[file[4:6]]
+        if file.endswith(img_type) and not file.startswith('._') :#and len(file) == 10:
+            f = f_map[file[-6:-4]]
             img = cv2.imread(os.path.join(imgs_dir, file))
             print("load image "+file+' - f:', f)
             images.append(img)

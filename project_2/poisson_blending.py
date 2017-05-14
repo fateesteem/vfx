@@ -2,6 +2,7 @@ import numpy as np
 import scipy.sparse
 import pyamg
 import cv2
+import gc
 from feature_matching import genMatchPairs
 from inverse_cylindrical_proj import inverse_cylindrical_projection, BiInterpn
 
@@ -122,6 +123,7 @@ def PoissonBlending(stitch_img, masks, imgs):
                     raise Exception('Illegal image!!')
         del loc_map
         del loc
+        gc.collect()
         A = A.tocsr()
         for c in range(3):
             x = pyamg.solve(A, b[:, c], verb=False, tol=1e-5)

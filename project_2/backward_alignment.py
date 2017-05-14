@@ -1,5 +1,6 @@
 import numpy as np
 import math
+import gc
 from alignment_helper import SolveAffine, SolveTranslation, GridAffineTransform, drift_adjustment
 from data_helper import Load_Data
 from ransac import RANSAC
@@ -55,6 +56,7 @@ def ImageStitching(imgs_proj, imgs_proj_mask, btype = 'Linear', solver = 'Affine
             min_x = min(min_x, np.min(x0))
             max_y = max(max_y, np.max(y0))
             max_x = max(max_x, np.max(x0))
+        gc.collect()
     ## estimates new image ##
     new_H = math.ceil(max_y - min_y + 1)
     new_W = math.ceil(max_x - min_x + 1)
@@ -86,6 +88,7 @@ def ImageStitching(imgs_proj, imgs_proj_mask, btype = 'Linear', solver = 'Affine
         else:
             i_prev_w = np.zeros_like(images_mask[i], dtype = 'float')
             i_prev_w[images_mask[i]] = 1. 
+        gc.collect()
     stitch_img[images_mask[-1], :] += (i_prev_w)[images_mask[-1], None] * tmp_imgs[-1][images_mask[-1], :]
     weight_acc[images_mask[-1]] += (i_prev_w)[images_mask[-1]]
     del i_prev_w

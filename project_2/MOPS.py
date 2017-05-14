@@ -196,7 +196,7 @@ def feature_detect(img_mask, img):
 
     ## pick local maximum in 3x3 and >= 10 ##
     selected_max = cv2.dilate(f_HM, np.ones((3,3))) # find local maxima in 3x3 region
-    located_mask = (f_HM == selected_max) & (f_HM >= 10.0) 
+    located_mask = (f_HM == selected_max) & (f_HM >= 15.0) 
     print('Current candidates before ANMS: {}'.format(np.count_nonzero(located_mask)))
     
     lcl_max_img = cv2.copyMakeBorder(org_img,0,0,0,0,cv2.BORDER_REPLICATE)

@@ -2,6 +2,7 @@ import argparse
 import numpy as np
 import cv2
 from data_helper import Load_Data
+import gc
 
 if __name__ == '__main__':
     ## argument parse ##
@@ -45,6 +46,7 @@ if __name__ == '__main__':
         imgs_proj_mask.append(new_img_mask)
 
     del imgs 
+    gc.collect()
     stitch_img = ImageStitching(imgs_proj, 
                                 imgs_proj_mask, 
                                 btype = blending_type, 
