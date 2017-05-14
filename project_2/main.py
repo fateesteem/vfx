@@ -39,12 +39,12 @@ if __name__ == '__main__':
     elif method == 'forward':
         from cylindrical_proj import cylindrical_projection
         from forward_alignment import ImageStitching
-    
     for i in range(imgs.shape[0]):
         new_img, new_img_mask = cylindrical_projection(imgs[i], fs[i])
         imgs_proj.append(new_img)
         imgs_proj_mask.append(new_img_mask)
 
+    del imgs 
     stitch_img = ImageStitching(imgs_proj, 
                                 imgs_proj_mask, 
                                 btype = blending_type, 

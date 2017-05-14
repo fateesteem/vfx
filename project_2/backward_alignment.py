@@ -88,7 +88,8 @@ def ImageStitching(imgs_proj, imgs_proj_mask, btype = 'Linear', solver = 'Affine
             i_prev_w[images_mask[i]] = 1. 
     stitch_img[images_mask[-1], :] += (i_prev_w)[images_mask[-1], None] * tmp_imgs[-1][images_mask[-1], :]
     weight_acc[images_mask[-1]] += (i_prev_w)[images_mask[-1]]
-    stitch_img = stitch_img / (weight_acc[:, :, None] + 1.0e-10)
+    del i_prev_w
+    stitch_img = (stitch_img / (weight_acc[:, :, None] + 1.0e-10)).astype('uint8')
     #stitch_img[images_mask[1], :] += (i_prev_w)[images_mask[1], None] * tmp_imgs[1][images_mask[1], :]
     if btype == 'Poisson':
         stitch_img = PoissonBlending(stitch_img, images_mask, tmp_imgs)

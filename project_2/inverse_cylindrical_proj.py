@@ -48,7 +48,7 @@ def BiInterpn(x, y, img, H, W, C, img_mask = None):
     new_mask = np.zeros((H, W), dtype = bool)
     new_mask[y_coor, x_coor] = True
     
-    return tmp_img, new_mask
+    return tmp_img.astype('uint8'), new_mask
         
 
 """
@@ -109,7 +109,7 @@ def inverse_cylindrical_projection(img, focal, Interpolate = True):
         new_img = np.zeros((new_H, new_W, Ch), dtype = np.int) 
         new_img = img[y_min:y_max + 1, x_min:x_max+1, :]
         new_mask = mask[y_min:y_max + 1, x_min:x_max + 1]
-    return new_img, new_mask
+    return new_img.astype('uint8'), new_mask
 
     
 
