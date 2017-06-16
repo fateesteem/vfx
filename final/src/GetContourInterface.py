@@ -3,7 +3,11 @@ import numpy as np
 
 
 class GetContourInterface:
-    def __init__(self):
+    def __init__(self, src_img=None):
+        if src_img is None:
+            self.src_img = np.zeros((512, 512, 3), np.uint8)
+        else:
+            self.src_img = src_img
         self.drawing = False # true if mouse is pressed
         self.add = False
         self.contour = np.empty([0, 2], dtype='int32')
@@ -35,15 +39,15 @@ class GetContourInterface:
 
         elif event == cv2.EVENT_LBUTTONUP:
             pnt = np.array([x, y], dtype='int32')
+            dist2origs = np.linalg.norm(pnt - self.contour[:20], axis=1)
             self.track = np.append(self.track, [pnt], axis=0)
             if self.add:
                 self.dist += np.linalg.norm(pnt - self.contour[-1])
-                dist2origs = np.linalg.norm(pnt - self.contour[:20], axis=1)
-                if self.contour.shape[0] > 40 and np.any(dist2origs < 5):
-                    self.first_idx = np.argmin(dist2origs)
-                elif not np.all(pnt == self.contour[-1]):
-                    line_pnts = self.fix_contour(self.contour[-1], pnt)
-                    self.contour = np.append(self.contour, line_pnts, axis=0)
+                if not(self.contour.shape[0] > 40 and np.any(dist2origs < 5)):
+                    if not np.all(pnt == self.contour[-1]):
+                        line_pnts = self.fix_contour(self.contour[-1], pnt)
+                        self.contour = np.append(self.contour, line_pnts, axis=0)
+            self.first_idx = np.argmin(dist2origs)
             self.contour = self.contour[self.first_idx:]
             line_pnts = self.fix_contour(self.contour[-1], self.contour[0])
             self.contour = np.append(self.contour, line_pnts[:-1], axis=0)
@@ -73,7 +77,7 @@ class GetContourInterface:
         cv2.namedWindow('GetContour')
         cv2.setMouseCallback('GetContour', self.draw_contour)
         while True:
-            img = np.zeros((512, 512, 3), np.uint8)
+            img = self.src_img.copy()
             if not len(self.contour) == 0:
                 if self.drawing:
                     cv2.polylines(img, [self.track], False, (0, 255, 0), 3)
@@ -95,10 +99,11 @@ class GetContourInterface:
 
 
 if __name__ == "__main__":
-    GetContourUI = GetContourInterface()
+    src_img = cv2.imread('./moon.jpg')
+    GetContourUI = GetContourInterface(src_img)
     GetContourUI.run()
     contour = GetContourUI.GetContour()
-    img = np.zeros((512, 512, 3), np.uint8)
+    img = np.zeros_like(src_img, dtype='uint8')
     cv2.drawContours(img, [contour], 0, (0, 255, 0), -1)
     cv2.drawContours(img, [contour], 0, (0, 0, 255), 3)
     cv2.imshow('img', img)
