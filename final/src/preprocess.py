@@ -28,7 +28,7 @@ def GetAdaptiveMesh(boundary, show=True):
 
 def CalcBCCoordinates(tri_mesh, patch_pnts):
     simplex_idxs = tri_mesh.find_simplex(patch_pnts)
-    T_invs = tri_mesh.transform[simplex_idxs,:2]
+    T_invs = tri_mesh.transform[simplex_idxs, :2]
     bc_coords_ij = np.einsum('ijk,ik->ij', T_invs, (patch_pnts - tri_mesh.transform[simplex_idxs, 2]))
     bc_coords = np.hstack([bc_coords_ij, 1 - np.sum(bc_coords_ij, axis=1, keepdims=True)])
     return simplex_idxs, bc_coords

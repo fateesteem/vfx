@@ -6,11 +6,19 @@ from GetPatchInterface import GetPatchInterface
 from  preprocess import MVCSolver, GetAdaptiveMesh, CalcBCCoordinates
 
 
+def load_img(path):
+    img = cv2.imread(path)
+    if img is None:
+        raise Exception("Failed to load the image from "+path)
+    return img
+
+
 class MVCCloner:
-    def __init__(self, src_img, target_img, mvc_config):
-        self.src_img = src_img
-        self.target_img = target_img
-        self.GetPatchUI = GetPatchInterface(src_img)
+    def __init__(self, src_img_path, target_img_path, output_path, mvc_config):
+        self.src_img = load_img(src_img_path)
+        self.target_img = load_img(target_img_path)
+        self.output_path = output_path
+        self.GetPatchUI = GetPatchInterface(self.src_img)
         self.mvc_solver = MVCSolver(mvc_config)
         # source patch attributes #
         self.lefttop = None
@@ -22,8 +30,8 @@ class MVCCloner:
         # UI attributes #
         self.moving = False
         self.anchor = None
-        self.win_X = target_img.shape[1]
-        self.win_Y = target_img.shape[0]
+        self.win_X = self.target_img.shape[1]
+        self.win_Y = self.target_img.shape[0]
         # Cloning attributes #
         self.MVCoords = None
         self.BCCoords = None
@@ -108,9 +116,10 @@ class MVCCloner:
             self.patch_img(img, clone_values)
             cv2.imshow('MVCCloner', img)
             k = cv2.waitKey(5) & 0xFF
-            if k == 32:
+            if k == 32:     # space
                 self.reset()
-            elif k == 13:
+            elif k == 13:   # enter
+                cv2.imwrite(self.output_path, img)
                 break
         cv2.destroyAllWindows()
 
