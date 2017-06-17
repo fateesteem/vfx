@@ -1,9 +1,11 @@
+import time
 import triangle
 import triangle.plot
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.spatial import Delaunay
 import cv2
-from GetContourInterface import GetContourInterface 
+from GetPatchInterface import GetPatchInterface 
 
 
 EPSILON     = 1e-8
@@ -11,17 +13,28 @@ ARCCOS_LUT  = np.arccos(np.linspace(-1., 1., 8192))
 TAN_LUT     = np.tan(np.linspace(0., np.pi/2., 8192))
 
 
-def GetAdaptiveMesh(contour, show=True):
-    num_pnt = contour.shape[0]
+def GetAdaptiveMesh(boundary, show=True):
+    num_pnt = boundary.shape[0]
     segments = np.stack([np.arange(num_pnt), (np.arange(num_pnt)+1)%num_pnt], axis=1)
-    boundary = dict(vertices=contour, segments=segments)
-    triangular_mesh = triangle.triangulate(boundary, 'pq')
+    patch = dict(vertices=boundary, segments=segments)
+    tri_mesh = triangle.triangulate(patch, 'pq')
+    scipy_tri_mesh= Delaunay(tri_mesh['vertices'].astype('int32'))
     if show:
-        triangle.plot.compare(plt, boundary, triangular_mesh)
+        triangle.plot.compare(plt, patch, tri_mesh)
         plt.show()
-    return triangular_mesh
+        plt.triplot(tri_mesh['vertices'][:,0], tri_mesh['vertices'][:,1], scipy_tri_mesh.simplices.copy())
+        plt.show()
+    return tri_mesh, scipy_tri_mesh
 
-class MVC:
+def CalcBCCoordinates(tri_mesh, patch_pnts):
+    simplex_idxs = tri_mesh.find_simplex(patch_pnts)
+    T_invs = tri_mesh.transform[simplex_idxs,:2]
+    bc_coords_ij = np.einsum('ijk,ik->ij', T_invs, (patch_pnts - tri_mesh.transform[simplex_idxs, 2]))
+    bc_coords = np.hstack([bc_coords_ij, 1 - np.sum(bc_coords_ij, axis=1, keepdims=True)])
+    return simplex_idxs, bc_coords
+
+
+class MVCSolver:
     def __init__(self, config):
         self.hierarchic = config['hierarchic']
         self.base_angle_Th = config['base_angle_Th']
@@ -138,25 +151,42 @@ if __name__ == "__main__":
                   'adaptiveMeshSizeCriteria': 0.,
                   'min_h_res': 16.}
     src_img = cv2.imread('./moon.jpg')
-    GetContourUI = GetContourInterface(src_img)
-    GetContourUI.run()
-    boundary = GetContourUI.GetContour()
-    boundary = boundary[::2]
+    GetPatchUI = GetPatchInterface(src_img)
+    GetPatchUI.run()
+    boundary, boundary_values, patch_pnts, patch_values = GetPatchUI.GetPatch(sample_step=2)
     num_pnt = boundary.shape[0]
     print("num_pnt:", num_pnt)
 
-    triangular_mesh = GetAdaptiveMesh(boundary)
-    print("# of mesh vertices:", triangular_mesh['vertices'].shape[0])
+    tri_mesh, scipy_tri_mesh = GetAdaptiveMesh(boundary, show=False)
+    print("# of mesh vertices:", tri_mesh['vertices'].shape[0])
 
-    mesh_vertices = triangular_mesh['vertices'][num_pnt:].astype('int32')
-    mvc = MVC(mvc_config)
+    # vertices except boundary #
+    mesh_vertices = tri_mesh['vertices'][num_pnt:].astype('int32')
+    # Calc MV Coords #
+    mvc = MVCSolver(mvc_config)
     MVCoords = mvc.CalcMVCoordinates(mesh_vertices, boundary)
-    print("MVCoords shape:\n", MVCoords.shape)
+    print("MVCoords shape:", MVCoords.shape)
     print("num sampling boundary points of %d vertices:\n" % np.sum(MVCoords > 0, axis=1).shape[0], np.sum(MVCoords > 0, axis=1))
-    # show sample sampling boundary points #
+
+    plt.scatter(scipy_tri_mesh.points[:, 0], scipy_tri_mesh.points[:, 1], color='blue', s=4)
+    #plt.triplot(tri_mesh['vertices'][:,0], tri_mesh['vertices'][:,1], scipy_tri_mesh.simplices.copy())
+    """
+    # show sampling boundary points of a random vertex #
     vertex_idx = np.random.randint(mesh_vertices.shape[0])
-    plt.scatter(triangular_mesh['vertices'][:, 0].astype('int32'), triangular_mesh['vertices'][:, 1].astype('int32'), color='black')
     plt.scatter(np.append(boundary[:, 0][MVCoords[vertex_idx] > 0], mesh_vertices[vertex_idx][0]),
                 np.append(boundary[:, 1][MVCoords[vertex_idx] > 0], mesh_vertices[vertex_idx][1]),
-                color='red')
+                color='red', s=16)
+    """
+    simplex_idxs, BCCoords = CalcBCCoordinates(scipy_tri_mesh, patch_pnts)
+    """
+    # plot points outside the simplices #
+    cnt = 0
+    for i, p in enumerate(patch_pnts):
+        if np.all(np.any(scipy_tri_mesh.points != p, axis=1)):
+            if np.any(BCCoords[i] > 1.-EPSILON):
+                cnt += 1
+                print(p, BCCoords[i])
+                plt.scatter(p[0], p[1], color='red', s=64)
+    print('outliers num:', cnt)
+    """
     plt.show()
