@@ -57,22 +57,24 @@ class GetPatchInterface:
                     self.boundary = np.append(self.boundary, line_pnts, axis=0)
 
         elif event == cv2.EVENT_LBUTTONUP:
-            pnt = np.array([x, y], dtype='int32')
-            dist2origs = np.linalg.norm(pnt - self.boundary[:-20], axis=1)
-            self.track = np.append(self.track, [pnt], axis=0)
-            if self.add:
-                self.dist += np.linalg.norm(pnt - self.boundary[-1])
-                if not(self.boundary.shape[0] > 40 and np.any(dist2origs < 5)):
-                    if not np.all(pnt == self.boundary[-1]):
-                        line_pnts = self.fix_boundary(self.boundary[-1], pnt)
-                        self.boundary = np.append(self.boundary, line_pnts, axis=0)
-            self.first_idx = np.argmin(dist2origs[:20])
-            self.boundary = self.boundary[self.first_idx:]
-            line_pnts = self.fix_boundary(self.boundary[-1], self.boundary[0])
-            self.boundary = np.append(self.boundary, line_pnts[:-1], axis=0)
+            if self.boundary.shape[0] > 20:
+                pnt = np.array([x, y], dtype='int32')
+                dist2origs = np.linalg.norm(pnt - self.boundary[:-20], axis=1)
+                self.track = np.append(self.track, [pnt], axis=0)
+                if self.add:
+                    if not(self.boundary.shape[0] > 40 and np.any(dist2origs < 5)):
+                        if not np.all(pnt == self.boundary[-1]):
+                            line_pnts = self.fix_boundary(self.boundary[-1], pnt)
+                            self.boundary = np.append(self.boundary, line_pnts, axis=0)
+                self.first_idx = np.argmin(dist2origs[:20])
+                self.boundary = self.boundary[self.first_idx:]
+                line_pnts = self.fix_boundary(self.boundary[-1], self.boundary[0])
+                self.boundary = np.append(self.boundary, line_pnts[:-1], axis=0)
+            else:
+                self.boundary = np.empty([0, 2], dtype='int32')
+                self.track = np.empty([0, 2], dtype='int32')
             self.drawing = False
             self.add = False
-            self.dist = 0.
             self.first_idx = 0
 
     def fix_boundary(self, start_pnt, end_pnt):
@@ -88,7 +90,6 @@ class GetPatchInterface:
         self.add = False
         self.boundary = np.empty([0, 2], dtype='int32')
         self.track = np.empty([0, 2], dtype='int32')
-        self.dist = 0.
         self.first_idx = 0
 
     def run(self):
@@ -108,9 +109,12 @@ class GetPatchInterface:
             if k == 32:
                 self.reset()
             elif k == 13:
-                # remove duplicate points #
-                self.boundary = unique_row(self.boundary)
-                break
+                if self.boundary.shape[0] == 0:
+                    print("UserWarning: The Boundary is not chosen yet!")
+                else:
+                    # remove duplicate points #
+                    self.boundary = unique_row(self.boundary)
+                    break
         cv2.destroyAllWindows()
 
     def GetPatch(self, sample_step=2):
@@ -142,8 +146,9 @@ if __name__ == "__main__":
             print(p)
     """
     patch_img = np.ones(shape, dtype='uint8')
+    #cv2.drawContours(patch_img, [boundary], 0, (0,255,0), 3)
     #patch_img[patch_pnts[:, 1], patch_pnts[:, 0], :] = patch_values
-    patch_img[boundary[:, 1], boundary[:, 0], :] = boundary_values
+    #patch_img[boundary[:, 1], boundary[:, 0], :] = boundary_values
     cv2.imshow('img', patch_img)
     cv2.waitKey(0)
 

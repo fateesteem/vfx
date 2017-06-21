@@ -1,5 +1,6 @@
 import os
 import time
+from itertools import product
 import numpy as np
 import cv2
 from GetPatchInterface import GetPatchInterface 
@@ -32,6 +33,8 @@ class MVCCloner:
         self.anchor = None
         self.win_X = self.target_img.shape[1]
         self.win_Y = self.target_img.shape[0]
+        self.theta = 0.
+        self.ratio = 1.
         # Cloning attributes #
         self.MVCoords = None
         self.BCCoords = None
@@ -44,6 +47,10 @@ class MVCCloner:
         self.GetPatchUI.run()
         start_t = time.time()
         self.boundary, self.boundary_values, self.patch_pnts, self.patch_values = self.GetPatchUI.GetPatch(sample_step=2)
+        self.boundary = self.boundary.astype('float32')
+        self.patch_pnts = self.patch_pnts.astype('float32')
+        self.lefttop = np.min(self.boundary, axis=0)
+        self.rightbottom = np.max(self.boundary, axis=0)
         print("GetPatch:", time.time() - start_t)
         start_t = time.time()
         # get adaptive triangular mesh #
@@ -71,24 +78,66 @@ class MVCCloner:
         print("BCCoords:", time.time() - start_t)
 
     # mouse callback function
-    def move_patch(self, event, x, y, flags, param):
+    def mouse_on_patch(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
-            if np.all([x, y] > self.lefttop) and np.all([x, y] < self.rightbottom):
+            if np.all([x, y] > self.lefttop.astype('int32')) and np.all([x, y] < self.rightbottom.astype('int32')):
                 self.moving = True
                 self.anchor = np.array([x, y], dtype='int32')
 
         elif event == cv2.EVENT_MOUSEMOVE:
             if self.moving:
-                max_corner = [self.win_X, self.win_Y]
-                displacement = [x, y] - self.anchor
-                self.anchor = np.array([x, y], dtype='int32')
-                if np.any((self.lefttop + displacement) < 0) or np.any((self.rightbottom + displacement) >= max_corner):
-                    return
-                self.set_patch_pos(displacement)
+                self.move_patch(x, y)
 
         elif event == cv2.EVENT_LBUTTONUP:
             self.moving = False
             self.anchor = None
+
+    def keyboard_on_patch(self, k):
+        if k == ord('>'):
+            self.rotate_patch(10.)
+        elif k == ord('<'):
+            self.rotate_patch(-10.)
+        elif k == 0: # UP
+            print('UP')
+        elif k == 1: # DOWN
+            print('DOWN')
+        elif k == 2: # LEFT
+            self.zoom_patch(1./np.power(2, 1./5))
+        elif k == 3: # RIGHT
+            self.zoom_patch(np.power(2, 1./5))
+
+    def move_patch(self, x, y):
+        max_corner = [self.win_X, self.win_Y]
+        displacement = [x, y] - self.anchor
+        self.anchor = np.array([x, y], dtype='int32')
+        future_lefttop = (self.lefttop + displacement).astype('int32')
+        future_rightbottom = (self.rightbottom + displacement).astype('int32')
+        if np.any(future_lefttop < 0) or np.any(future_rightbottom + [1, 1] >= max_corner):
+            return
+        self.set_patch_pos(displacement)
+
+    def rotate_patch(self, d):
+        # transpose of the rotation matrix #
+        rad = np.pi/180.*(d)
+        M = np.array([[    np.cos(rad), np.sin(rad)],
+                      [-1.*np.sin(rad), np.cos(rad)]], dtype='float32')
+        patch_center = (self.rightbottom + self.lefttop) / 2.
+        self.boundary = (self.boundary - patch_center) @ M + patch_center
+        self.patch_pnts = (self.patch_pnts - patch_center) @ M + patch_center
+        self.lefttop = np.min(self.boundary, axis=0)
+        self.rightbottom = np.max(self.boundary, axis=0)
+        self.theta = (self.theta + d) % 360
+
+    def zoom_patch(self, ratio):
+        if 0.5 < self.ratio * ratio and self.ratio * ratio < 2.:
+            self.ratio *= ratio
+            patch_center = (self.rightbottom + self.lefttop) / 2.
+            self.boundary *=ratio
+            self.patch_pnts *= ratio
+            self.lefttop *= ratio
+            self.rightbottom *= ratio
+            new_patch_center = (self.rightbottom + self.lefttop) / 2.
+            self.set_patch_pos(patch_center - new_patch_center)
 
     def set_patch_pos(self, displacement):
         self.boundary += displacement
@@ -98,8 +147,10 @@ class MVCCloner:
 
     def reset(self):
         screen_center = np.array([self.win_X >> 1 , self.win_Y >> 1], dtype='int32')
-        self.lefttop = np.min(self.boundary, axis=0)
-        self.rightbottom = np.max(self.boundary, axis=0)
+        self.rotate_patch(-1*self.theta)
+        self.zoom_patch(1./self.ratio)
+        #self.lefttop = np.min(self.boundary, axis=0) # calc in rotate patch
+        #self.rightbottom = np.max(self.boundary, axis=0)
         patch_center = ((self.rightbottom + self.lefttop) / 2).astype('int32')
         self.set_patch_pos(screen_center - patch_center)
         self.moving = False
@@ -109,22 +160,34 @@ class MVCCloner:
         assert not self.boundary is None, "Source Patch is not selected yet!"
         self.reset()
         cv2.namedWindow('MVCCloner')
-        cv2.setMouseCallback('MVCCloner', self.move_patch)
+        cv2.setMouseCallback('MVCCloner', self.mouse_on_patch)
+        clone_time = []
+        patch_time = []
         while True:
             img = self.target_img.copy()
+            start_t = time.time()
             clone_values = self.CalcCloningValues()
+            clone_time.append(time.time() - start_t)
+            start_t = time.time()
             self.patch_img(img, clone_values)
+            patch_time.append(time.time() - start_t)
             cv2.imshow('MVCCloner', img)
             k = cv2.waitKey(5) & 0xFF
             if k == 32:     # space
                 self.reset()
-            elif k == 13:   # enter
+            elif k == ord('s'):
                 cv2.imwrite(self.output_path, img)
+            elif k == 13 or k == 27:   # enter or esc
+                print("Clone time:", np.mean(clone_time))
+                print("Patch time:", np.mean(patch_time))
                 break
+            else:
+                self.keyboard_on_patch(k)
         cv2.destroyAllWindows()
 
     def CalcCloningValues(self):
-        target_boundary_values = self.target_img[self.boundary[:, 1], self.boundary[:, 0], :]
+        boundary_int = np.round(self.boundary).astype('int32')
+        target_boundary_values = self.target_img[boundary_int[:, 1], boundary_int[:, 0], :]
         diffs = target_boundary_values - self.boundary_values
         interpolants = self.MVCoords @ diffs
         self.mesh_diffs[:self.num_boundary, :] = diffs
@@ -134,7 +197,20 @@ class MVCCloner:
         return np.clip(clone_values, 0., 255.).astype('uint8')
 
     def patch_img(self, img, set_values):
-        img[self.patch_pnts[:, 1], self.patch_pnts[:, 0], :] = set_values
+        tmp = np.zeros_like(self.target_img, dtype='float32')
+        weights = np.zeros((self.win_Y, self.win_X), dtype='float32')
+        patch_pnts_int = self.patch_pnts.astype('int32')
+        for dx, dy in product(range(2), range(2)):
+            if dy == 0 and dx == 0:
+                weight = 0.97
+            else:
+                weight = 0.01
+            gause_pnts = patch_pnts_int + [dx, dy]
+            tmp[gause_pnts[:, 1], gause_pnts[:, 0], :] += set_values * weight
+            weights[gause_pnts[:, 1], gause_pnts[:, 0]] += weight
+        patch_mask = weights > 0.
+        img[patch_mask] = tmp[patch_mask] / weights[patch_mask][..., None]
+        #img[patch_pnts_int[:, 1], patch_pnts_int[:, 0], :] = set_values
 
 
 
@@ -146,10 +222,11 @@ if __name__ == "__main__":
                   'adaptiveMeshShapeCriteria': 0.125,
                   'adaptiveMeshSizeCriteria': 0.,
                   'min_h_res': 16.}
-    src_img = cv2.imread('./source.jpg')
-    target_img = cv2.imread('./target.jpg')
+    src_img_path = './source.jpg'
+    target_img_path = './target.jpg'
+    output_path = './out.jpg'
 
-    mvc_cloner = MVCCloner(src_img, target_img, mvc_config)
+    mvc_cloner = MVCCloner(src_img_path, target_img_path, output_path, mvc_config)
     mvc_cloner.GetPatch()
     mvc_cloner.run()
 
