@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from grabcut import GCManager
 
 
 def unique_row(data):
@@ -32,6 +33,7 @@ class GetPatchInterface:
         self.boundary = np.empty([0, 2], dtype='int32')
         self.track = np.empty([0, 2], dtype='int32')
         self.first_idx = 0
+        self.grabCut = GCManager(src_img.copy())
 
     # mouse callback function
     def draw_boundary(self, event, x, y, flags, param):
@@ -116,12 +118,13 @@ class GetPatchInterface:
                     self.boundary = unique_row(self.boundary)
                     break
         cv2.destroyAllWindows()
+        self.boundary = self.grabCut.interactive_session(self.boundary)
 
     def GetPatch(self, sample_step=2):
         assert not self.boundary.shape[0] == 0, "The Boundary is not chosen yet!"
         #approx_boundary = cv2.approxPolyDP(self.boundary, 0.001, True)
         #approx_boundary = approx_boundary.reshape(-1, 2)
-        sample_boundary = self.boundary[::sample_step]
+        sample_boundary = self.boundary[::sample_step].copy()
         img = np.zeros(self.src_img.shape[:2], dtype='uint8')
         cv2.drawContours(img, [sample_boundary], 0, 255, -1)
         mask = img.astype('bool')
@@ -133,7 +136,7 @@ class GetPatchInterface:
 
 
 if __name__ == "__main__":
-    src_img = cv2.imread('./moon.jpg')
+    src_img = cv2.imread('../img/Dog.jpg')
     shape = src_img.shape if not src_img is None else (512, 512, 3)
     GetPatchUI = GetPatchInterface(src_img)
     GetPatchUI.run()

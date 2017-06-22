@@ -32,11 +32,12 @@ class GCManager:
         self.GC_FG = 1
         self.GC_PR_BG = 2
         self.GC_PR_FG = 3
-
+        
+        ## calculate parameter ##
         self.calcBeta()
         self.calcSmooth()
 
-        self._mask = np.zeros_like(src_img, dtype=np.uint8)[:, :, 0]
+        self._mask = np.zeros(self.img.shape[:2], dtype='uint8')
         self._mask[:, :] = self.GC_BG
 
     def calcBeta(self):
@@ -61,6 +62,9 @@ class GCManager:
         self.p_weight[1:, :-1] = self.gamma*np.exp(-self.beta*np.sum(self._p_diff ** 2, axis=2))
 
     def onmouse(self, event, x, y, flags, param):
+        """
+            generate rectangular mask in debug
+        """
         if event == cv2.EVENT_RBUTTONDOWN:
             self._draw_rect = True
             self._ix, self._iy = x, y
@@ -89,13 +93,13 @@ class GCManager:
         cur_t = time.clock()
         self.BG_GMM.fit(self._bg_data)
         self.FG_GMM.fit(self._fg_data)
-        print('finish initial train on GMM... {} s'.format(time.clock()-cur_t))
+        print('finish initial training on GMM... {} s'.format(time.clock()-cur_t))
 
     def assignGMM(self):
         self._flatten_data = self.src_img.reshape(-1, 3)
         self.BG_label = self.BG_GMM.predict(self._bg_data)
         self.FG_label = self.FG_GMM.predict(self._fg_data)
-        print('predict ...')
+        print('finish GMM component assignment ...')
 
     def learnGMM(self):
         ## reinitialize GMM model ##
@@ -107,7 +111,7 @@ class GCManager:
 
         self.BG_GMM.fit(self._bg_data)
         self.FG_GMM.fit(self._fg_data)
-        print('finish train on GMM...')
+        print('finish GMM learning...')
 
     def constructGraph(self):
         self.BG_prob = self.BG_GMM.score_samples(self._flatten_data).reshape(self.row, self.col)
@@ -148,6 +152,9 @@ class GCManager:
 
     def EstSegmentation(self):
         est_seg = self.graph.get_grid_segments(self.nodeids)
+        update_target = np.where(np.logical_or(self._mask == self.GC_PR_BG, self._mask == self.GC_PR_FG))
+        self._mask[update_target] = np.where(est_seg[update_target], self.GC_PR_BG, self.GC_PR_FG)
+        '''
         for y in range(self.row):
             for x in range(self.col):
                 if self._mask[y, x] == self.GC_PR_BG or self._mask[y, x] == self.GC_PR_FG:
@@ -155,6 +162,7 @@ class GCManager:
                         self._mask[y, x] = self.GC_PR_BG
                     else:
                         self._mask[y, x] = self.GC_PR_FG
+        '''
         print('finish segmentation...')
 
 
@@ -164,6 +172,53 @@ class GCManager:
         self.learnGMM()
         self.constructGraph()
         self.EstSegmentation()
+        output_mask = np.zeros_like(self._mask)
+        output_mask = np.where((self._mask == self.GC_FG)+(self._mask == self.GC_PR_FG),
+                                255, 0).astype(bool)
+        return output_mask
+    
+    def interactive_session(self, boundary):
+        """
+            the wrapper function, interactive with user. 
+            region enclosed by boundary would be considered as PR_FG, otherwise, BG.
+        """
+        ## initialize mask from boundary ##
+        assert len(boundary) > 0, 'Get empty boundary !!!'
+        sample_boundary = boundary[::2]
+        cv2.drawContours(self._mask, [sample_boundary], 0, self.GC_PR_FG, -1)
+
+        cv2.namedWindow('input')
+        cv2.namedWindow('output')
+        cv2.moveWindow('input',self.img.shape[1]+10,90)
+
+        output = np.zeros_like(self.img)
+        while True:
+            cv2.imshow('input', self.img)
+            cv2.imshow('output', output)
+
+            k = cv2.waitKey(1) & 0xFF
+            if k == ord('q'):
+                break
+            elif k == ord('n'):
+                print('initialize ...')
+                self.run()
+            
+            mask = np.where((self._mask == self.GC_FG) + (self._mask == self.GC_PR_FG)
+                            , 255, 0).astype('uint8')
+            output = cv2.bitwise_and(self.src_img, self.src_img, mask=mask)
+        cv2.destroyAllWindows()
+        output_mask = np.zeros(self.img.shape[:2])
+        output_mask = np.where((self._mask == self.GC_FG)+(self._mask == self.GC_PR_FG),
+                                255, 0).astype('uint8')
+        print(output_mask.shape)
+        _, contours, h = cv2.findContours(output_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+        max_area = 0.0
+        for i, cnt in enumerate(contours):
+            area = cv2.contourArea(cnt)
+            if area > max_area:
+                index = i
+                max_area = area
+        return contours[index].copy().reshape(-1, 2) 
 
 
 if __name__ == '__main__':
