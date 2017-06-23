@@ -5,6 +5,7 @@ import numpy as np
 import cv2
 from GetPatchInterface import GetPatchInterface 
 from  preprocess import MVCSolver, GetAdaptiveMesh, CalcBCCoordinates
+from poisson_blending import PoissonBlendingInterface
 
 
 def load_img(path):
@@ -177,6 +178,9 @@ class MVCCloner:
                 self.reset()
             elif k == ord('s'):
                 cv2.imwrite(self.output_path, img)
+                poisson_output = PoissonBlendingInterface(self.target_img.copy(), self.boundary, 
+                                        self.boundary_values, self.patch_pnts, self.patch_values)
+                cv2.imwrite('Poisson_output.png', poisson_output)
             elif k == 13 or k == 27:   # enter or esc
                 print("Clone time:", np.mean(clone_time))
                 print("Patch time:", np.mean(patch_time))

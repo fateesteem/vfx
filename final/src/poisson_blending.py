@@ -5,6 +5,24 @@ import cv2
 import gc
 import sys
 
+def PoissonBlendingInterface(tar, boundary, boundary_values, patch_pnts, patch_values):
+    """
+        interface to poisson blending from MVCCloner
+    """
+    boundary = boundary.astype('int32')
+    patch_pnts = patch_pnts.astype('int32')
+    ## reconstruct img and mask from pnts ##
+    src_img = np.zeros_like(tar, dtype=np.uint8)
+    src_img[boundary[:, 1], boundary[:, 0], :] = boundary_values
+    src_img[patch_pnts[:, 1], patch_pnts[:, 0], :] = patch_values
+    mask = np.zeros(src_img.shape[:2], dtype=bool)
+    mask[boundary[:, 1], boundary[:, 0]] = True 
+    mask[patch_pnts[:, 1], patch_pnts[:, 0]] = True
+
+    output = PoissonBlending(src_img, tar, mask)
+
+    return output
+
 def PoissonBlending(src, tar, mask):
     H, W = tar.shape[:2]
     blending_mask = mask

@@ -27,6 +27,7 @@ class GCManager:
         self._rect_over = False
         self._drawing = False
         self._thickness = 3
+        self.DRAW = None
         
         self.GC_BG = 0
         self.GC_FG = 1
@@ -61,7 +62,7 @@ class GCManager:
         self.n_weight[1:, 1:] = self.gamma*np.exp(-self.beta*np.sum(self._n_diff ** 2, axis=2))
         self.p_weight[1:, :-1] = self.gamma*np.exp(-self.beta*np.sum(self._p_diff ** 2, axis=2))
 
-    def onmouse(self, event, x, y, flags, param):
+    def rect_onmouse(self, event, x, y, flags, param):
         """
             generate rectangular mask in debug
         """
@@ -82,6 +83,27 @@ class GCManager:
             self.img = self.src_img.copy()
             cv2.rectangle(self.img, (self._ix, self._iy), (x, y), [255, 0, 0], 2)
             self._mask[self._rect[1]:self._rect[1]+self._rect[3], self._rect[0]:self._rect[0]+self._rect[2]] = self.GC_PR_FG 
+
+    def refining_mouse(self, event, x, y, flags, param):
+        """
+            mark region to refine mask
+        """
+        if event == cv2.EVENT_LBUTTONDOWN:
+            if self.DRAW is not None and self._drawing == False:
+                self._drawing = True
+                cv2.circle(self.img, (x, y), self._thickness, self.DRAW['color'], -1)
+                cv2.circle(self._mask, (x, y), self._thickness, self.DRAW['val'], -1)
+        elif event == cv2.EVENT_MOUSEMOVE:
+            if self._drawing == True:
+                cv2.circle(self.img, (x, y), self._thickness, self.DRAW['color'], -1)
+                cv2.circle(self._mask, (x, y), self._thickness, self.DRAW['val'], -1)
+        elif event == cv2.EVENT_LBUTTONUP:
+            if self._drawing == True:
+                cv2.circle(self.img, (x, y), self._thickness, self.DRAW['color'], -1)
+                cv2.circle(self._mask, (x, y), self._thickness, self.DRAW['val'], -1)
+                self._drawing = False
+
+
 
     def initGMM(self):
         self._bg = np.where(np.logical_or(self._mask == self.GC_BG, self._mask == self.GC_PR_BG))
@@ -172,10 +194,6 @@ class GCManager:
         self.learnGMM()
         self.constructGraph()
         self.EstSegmentation()
-        output_mask = np.zeros_like(self._mask)
-        output_mask = np.where((self._mask == self.GC_FG)+(self._mask == self.GC_PR_FG),
-                                255, 0).astype(bool)
-        return output_mask
     
     def interactive_session(self, boundary):
         """
@@ -189,6 +207,7 @@ class GCManager:
 
         cv2.namedWindow('input')
         cv2.namedWindow('output')
+        cv2.setMouseCallback('input', self.refining_mouse)
         cv2.moveWindow('input',self.img.shape[1]+10,90)
 
         output = np.zeros_like(self.img)
@@ -199,9 +218,22 @@ class GCManager:
             k = cv2.waitKey(1) & 0xFF
             if k == ord('q'):
                 break
+            elif k == 32:
+                self.DRAW = None
+                cv2.drawContours(self._mask, [sample_boundary], 0, self.GC_PR_FG, -1)
+                self.img = self.src_img.copy()
             elif k == ord('n'):
+                self.DRAW = None
                 print('initialize ...')
                 self.run()
+            ## interactive drawing ##
+            elif k == ord('0'):
+                print('labeling true background(BG)...')
+                self.DRAW = self._DRAW_BG
+            elif k == ord('1'):
+                print('labeling true foreground(FG)...')
+                self.DRAW = self._DRAW_FG
+
             
             mask = np.where((self._mask == self.GC_FG) + (self._mask == self.GC_PR_FG)
                             , 255, 0).astype('uint8')
@@ -210,7 +242,6 @@ class GCManager:
         output_mask = np.zeros(self.img.shape[:2])
         output_mask = np.where((self._mask == self.GC_FG)+(self._mask == self.GC_PR_FG),
                                 255, 0).astype('uint8')
-        print(output_mask.shape)
         _, contours, h = cv2.findContours(output_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
         max_area = 0.0
         for i, cnt in enumerate(contours):
