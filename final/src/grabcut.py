@@ -26,7 +26,7 @@ class GCManager:
         self._draw_rect = False
         self._rect_over = False
         self._drawing = False
-        self._thickness = 3
+        self._thickness = 2
         self.DRAW = None
         
         self.GC_BG = 0
@@ -216,7 +216,7 @@ class GCManager:
             cv2.imshow('output', output)
 
             k = cv2.waitKey(1) & 0xFF
-            if k == ord('q'):
+            if k == ord('q') or k == 13:
                 break
             elif k == 32:
                 self.DRAW = None

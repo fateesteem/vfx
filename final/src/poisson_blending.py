@@ -56,7 +56,7 @@ def PoissonBlending(src, tar, mask):
                     f_q = tar[j-1, i, :].astype('float')
                     g_q = src[j-1, i, :].astype('float')
                     if(blending_mask[j - 1, i]): # in the omega
-                        v_pq += [alpha, 1-alpha]@np.array([(f_p-f_q), (g_p-g_q)])
+                        v_pq += np.dot([alpha, 1-alpha], np.array([(f_p-f_q), (g_p-g_q)]))
                         A[cur_ptr, loc_map[(j-1, i)]] = -1.0
                     else: # on the boundary
                         # known function f*_p + v_pq
@@ -69,7 +69,7 @@ def PoissonBlending(src, tar, mask):
                     f_q = tar[j+1, i, :].astype('float')
                     g_q = src[j+1, i, :].astype('float')
                     if(blending_mask[j + 1, i]): # in the omega
-                        v_pq +=  [alpha, 1-alpha]@np.array([(f_p-f_q), (g_p-g_q)])
+                        v_pq +=  np.dot([alpha, 1-alpha], np.array([(f_p-f_q), (g_p-g_q)]))
                         A[cur_ptr, loc_map[(j+1, i)]] = -1.0
                     else: # on the boundary
                         v_pq +=tar[j+1, i, :].astype('float') #+ (f_p-f_q)
@@ -78,7 +78,7 @@ def PoissonBlending(src, tar, mask):
                 f_q = tar[j, i-1, :].astype('float')
                 g_q = src[j, i-1, :].astype('float')
                 if(blending_mask[j, i-1]): # in the omega
-                    v_pq += [alpha, 1-alpha]@np.array([(f_p-f_q), (g_p-g_q)])
+                    v_pq += np.dot([alpha, 1-alpha], np.array([(f_p-f_q), (g_p-g_q)]))
                     A[cur_ptr, loc_map[(j, i-1)]] = -1.0
                 else: # on the boundary
                     v_pq +=tar[j, i-1, :].astype('float') #+ (f_p-f_q)
@@ -87,7 +87,7 @@ def PoissonBlending(src, tar, mask):
                 f_q = tar[j, i+1, :].astype('float')
                 g_q = src[j, i+1, :].astype('float')
                 if(blending_mask[j, i+1]): # in the omega
-                    v_pq += [alpha, 1-alpha]@np.array([(f_p-f_q), (g_p-g_q)])
+                    v_pq += np.dot([alpha, 1-alpha], np.array([(f_p-f_q), (g_p-g_q)]))
                     A[cur_ptr, loc_map[(j, i+1)]] = -1.0
                 else: # on the boundary
                     v_pq +=tar[j, i+1, :].astype('float') #+ (f_p-f_q)
