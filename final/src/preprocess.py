@@ -150,7 +150,7 @@ if __name__ == "__main__":
                   'adaptiveMeshShapeCriteria': 0.125,
                   'adaptiveMeshSizeCriteria': 0.,
                   'min_h_res': 16.}
-    src_img = cv2.imread('./moon.jpg')
+    src_img = cv2.imread('../img/Dog.jpg')
     GetPatchUI = GetPatchInterface(src_img)
     GetPatchUI.run()
     boundary, boundary_values, patch_pnts, patch_values = GetPatchUI.GetPatch(sample_step=2)
