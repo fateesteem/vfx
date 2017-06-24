@@ -122,8 +122,8 @@ class MVCCloner:
         M = np.array([[    np.cos(rad), np.sin(rad)],
                       [-1.*np.sin(rad), np.cos(rad)]], dtype='float32')
         patch_center = (self.rightbottom + self.lefttop) / 2.
-        self.boundary = (self.boundary - patch_center) @ M + patch_center
-        self.patch_pnts = (self.patch_pnts - patch_center) @ M + patch_center
+        self.boundary = np.dot((self.boundary - patch_center), M) + patch_center
+        self.patch_pnts = np.dot((self.patch_pnts - patch_center), M) + patch_center
         self.lefttop = np.min(self.boundary, axis=0)
         self.rightbottom = np.max(self.boundary, axis=0)
         self.theta = (self.theta + d) % 360
@@ -189,7 +189,7 @@ class MVCCloner:
         boundary_int = np.round(self.boundary).astype('int32')
         target_boundary_values = self.target_img[boundary_int[:, 1], boundary_int[:, 0], :]
         diffs = target_boundary_values - self.boundary_values
-        interpolants = self.MVCoords @ diffs
+        interpolants = np.dot(self.MVCoords, diffs)
         self.mesh_diffs[:self.num_boundary, :] = diffs
         self.mesh_diffs[self.num_boundary:, :] = interpolants
         BCinterps = self.mesh_diffs[self.triangles_vertices]
