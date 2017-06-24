@@ -18,7 +18,7 @@ def load_img(path):
 class MVCCloner:
     def __init__(self, src_img_path, target_img_path, output_path, mvc_config):
         self.src_img = load_img(src_img_path)
-        self.target_img = load_img(target_img_path)
+        self.target_img = load_img(src_img_path)
         self.output_path = output_path
         self.GetPatchUI = GetPatchInterface(self.src_img)
         self.mvc_solver = MVCSolver(mvc_config)
@@ -43,11 +43,16 @@ class MVCCloner:
         self.mesh_diffs = None
         self.num_boundary = None
 
+        self.target_boundary_values = None
+        self.original_patch_ptn = None
+        
+
     def GetPatch(self):
         # get source patch from UI #
         self.GetPatchUI.run()
         start_t = time.time()
         self.boundary, self.boundary_values, self.patch_pnts, self.patch_values = self.GetPatchUI.GetPatch(sample_step=2)
+        self.target_boundary_values = self.target_img[self.boundary[:, 1], self.boundary[:, 0], :]
         self.boundary = self.boundary.astype('float32')
         self.patch_pnts = self.patch_pnts.astype('float32')
         self.lefttop = np.min(self.boundary, axis=0)
@@ -69,6 +74,7 @@ class MVCCloner:
         inliners_idxs = ~np.any(self.BCCoords < 0.-1e-8, axis=1)
         # filter outliers #
         self.patch_pnts = self.patch_pnts[inliners_idxs]
+        self.original_patch_ptn = self.patch_pnts.copy()
         self.patch_values = self.patch_values[inliners_idxs]
         simplex_idxs = simplex_idxs[inliners_idxs]
         self.BCCoords = self.BCCoords[inliners_idxs]
@@ -103,16 +109,17 @@ class MVCCloner:
         elif k == 1: # DOWN
             print('DOWN')
         elif k == 2: # LEFT
-            self.zoom_patch(1./np.power(1.5, 1./10))
+            self.zoom_patch(1./np.power(2, 1./5))
         elif k == 3: # RIGHT
-            self.zoom_patch(np.power(1.5, 1./10))
+            self.zoom_patch(np.power(2, 1./5))
 
     def move_patch(self, x, y):
+        max_corner = [self.win_X, self.win_Y]
         displacement = [x, y] - self.anchor
         self.anchor = np.array([x, y], dtype='int32')
         future_lefttop = (self.lefttop + displacement).astype('int32')
         future_rightbottom = (self.rightbottom + displacement).astype('int32')
-        if self.exceed_window(future_lefttop, future_rightbottom):
+        if np.any(future_lefttop < 0) or np.any(future_rightbottom + [1, 1] >= max_corner):
             return
         self.set_patch_pos(displacement)
 
@@ -122,35 +129,22 @@ class MVCCloner:
         M = np.array([[    np.cos(rad), np.sin(rad)],
                       [-1.*np.sin(rad), np.cos(rad)]], dtype='float32')
         patch_center = (self.rightbottom + self.lefttop) / 2.
-        new_boundary = np.dot((self.boundary - patch_center), M) + patch_center
-        new_patch_pnts = np.dot((self.patch_pnts - patch_center), M) + patch_center
-        new_lefttop = np.min(new_boundary, axis=0)
-        new_rightbottom = np.max(new_boundary, axis=0)
-        if self.exceed_window(new_lefttop, new_rightbottom):
-            return
-        else:
-            self.boundary = new_boundary
-            self.patch_pnts = new_patch_pnts
-            self.lefttop = new_lefttop
-            self.rightbottom = new_rightbottom
-            self.theta = (self.theta + d) % 360
+        self.boundary = (self.boundary - patch_center) @ M + patch_center
+        self.patch_pnts = (self.patch_pnts - patch_center) @ M + patch_center
+        self.lefttop = np.min(self.boundary, axis=0)
+        self.rightbottom = np.max(self.boundary, axis=0)
+        self.theta = (self.theta + d) % 360
 
     def zoom_patch(self, ratio):
-        if 0.5 < self.ratio * ratio and self.ratio * ratio < 1.5:
+        if 0.5 < self.ratio * ratio and self.ratio * ratio < 2.:
+            self.ratio *= ratio
             patch_center = (self.rightbottom + self.lefttop) / 2.
-            new_lefttop = self.lefttop * ratio
-            new_rightbottom = self.rightbottom * ratio
-            new_patch_center = (new_rightbottom + new_lefttop) / 2.
-            displacement = patch_center - new_patch_center
-            if self.exceed_window((new_lefttop + displacement), (new_rightbottom + displacement)):
-                return
-            else:
-                self.lefttop *= ratio
-                self.rightbottom *= ratio
-                self.ratio *= ratio
-                self.boundary *=ratio
-                self.patch_pnts *= ratio
-                self.set_patch_pos(displacement)
+            self.boundary *=ratio
+            self.patch_pnts *= ratio
+            self.lefttop *= ratio
+            self.rightbottom *= ratio
+            new_patch_center = (self.rightbottom + self.lefttop) / 2.
+            self.set_patch_pos(patch_center - new_patch_center)
 
     def set_patch_pos(self, displacement):
         self.boundary += displacement
@@ -158,12 +152,6 @@ class MVCCloner:
         self.lefttop += displacement
         self.rightbottom += displacement
 
-    def exceed_window(self, lefttop, rightbottom):
-        max_corner = [self.win_X, self.win_Y]
-        if np.any(lefttop < 0) or np.any(rightbottom + [1, 1] >= max_corner):
-            return True
-        else:
-            return False
 
     def reset(self):
         screen_center = np.array([self.win_X >> 1 , self.win_Y >> 1], dtype='int32')
@@ -209,10 +197,12 @@ class MVCCloner:
         cv2.destroyAllWindows()
 
     def CalcCloningValues(self):
+        patch_pnts_int = self.patch_pnts.astype('int32')
+        self.patch_values = self.target_img[patch_pnts_int[:, 1], patch_pnts_int[:, 0], :].astype('float32')
         boundary_int = self.boundary.astype('int32')
-        target_boundary_values = self.target_img[boundary_int[:, 1], boundary_int[:, 0], :]
-        diffs = target_boundary_values - self.boundary_values
-        interpolants = np.dot(self.MVCoords, diffs)
+        self.boundary_values = self.target_img[boundary_int[:, 1], boundary_int[:, 0], :].astype('float32')
+        diffs = self.target_boundary_values - self.boundary_values
+        interpolants = self.MVCoords @ diffs
         self.mesh_diffs[:self.num_boundary, :] = diffs
         self.mesh_diffs[self.num_boundary:, :] = interpolants
         BCinterps = self.mesh_diffs[self.triangles_vertices]
@@ -222,7 +212,7 @@ class MVCCloner:
     def patch_img(self, img, set_values):
         tmp = np.zeros_like(self.target_img, dtype='float32')
         weights = np.zeros((self.win_Y, self.win_X), dtype='float32')
-        patch_pnts_int = self.patch_pnts.astype('int32')
+        patch_pnts_int = self.original_patch_ptn.astype('int32')
         for dx, dy in product(range(2), range(2)):
             if dy == 0 and dx == 0:
                 weight = 0.97
@@ -245,7 +235,7 @@ if __name__ == "__main__":
                   'adaptiveMeshShapeCriteria': 0.125,
                   'adaptiveMeshSizeCriteria': 0.,
                   'min_h_res': 16.}
-    src_img_path = './source.jpg'
+    src_img_path = './target.jpg'
     target_img_path = './target.jpg'
     output_path = './out.jpg'
 
