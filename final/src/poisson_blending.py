@@ -44,17 +44,17 @@ def PoissonBlending(src, tar, mask):
     A = scipy.sparse.identity(N, format='lil')
     b = np.zeros((N, 3), dtype='float')
     for (j, i) in zip(loc[0], loc[1]):
-        alpha = 0.5#w_l[j, i]
+        alpha = 0.0 #w_l[j, i]
         cur_ptr = loc_map[(j, i)]
         if(blending_mask[j, i]):
             N_p = 0.0
             v_pq = np.zeros((1,3), dtype='float')
-            f_p = src[j, i, :].astype('float')
-            g_p = tar[j, i, :].astype('float')
+            f_p = tar[j, i, :].astype('float')
+            g_p = src[j, i, :].astype('float')
             if(j > 0):
                 if(fill_mask[j - 1, i]): #upper neighbor exists
-                    f_q = src[j-1, i, :].astype('float')
-                    g_q = tar[j-1, i, :].astype('float')
+                    f_q = tar[j-1, i, :].astype('float')
+                    g_q = src[j-1, i, :].astype('float')
                     if(blending_mask[j - 1, i]): # in the omega
                         v_pq += [alpha, 1-alpha]@np.array([(f_p-f_q), (g_p-g_q)])
                         A[cur_ptr, loc_map[(j-1, i)]] = -1.0
@@ -62,35 +62,35 @@ def PoissonBlending(src, tar, mask):
                         # known function f*_p + v_pq
                         # here we choose gradient image of original image with its
                         # pixel value exists.
-                        v_pq += tar[j-1, i, :].astype('float') + (g_p-g_q) 
+                        v_pq += tar[j-1, i, :].astype('float') #+ (f_p-f_q) 
                     N_p += 1.0
             if(j < H - 1):
                 if(fill_mask[j + 1, i]): #lower neighbor exists
-                    f_q = src[j+1, i, :].astype('float')
-                    g_q = tar[j+1, i, :].astype('float')
+                    f_q = tar[j+1, i, :].astype('float')
+                    g_q = src[j+1, i, :].astype('float')
                     if(blending_mask[j + 1, i]): # in the omega
                         v_pq +=  [alpha, 1-alpha]@np.array([(f_p-f_q), (g_p-g_q)])
                         A[cur_ptr, loc_map[(j+1, i)]] = -1.0
                     else: # on the boundary
-                        v_pq +=tar[j+1, i, :].astype('float') + (g_p-g_q)
+                        v_pq +=tar[j+1, i, :].astype('float') #+ (f_p-f_q)
                     N_p += 1.0
             if(fill_mask[j, i - 1]): #left neighbor exists
-                f_q = src[j, i-1, :].astype('float')
-                g_q = tar[j, i-1, :].astype('float')
+                f_q = tar[j, i-1, :].astype('float')
+                g_q = src[j, i-1, :].astype('float')
                 if(blending_mask[j, i-1]): # in the omega
                     v_pq += [alpha, 1-alpha]@np.array([(f_p-f_q), (g_p-g_q)])
                     A[cur_ptr, loc_map[(j, i-1)]] = -1.0
                 else: # on the boundary
-                    v_pq +=tar[j, i-1, :].astype('float') + (g_p-g_q)
+                    v_pq +=tar[j, i-1, :].astype('float') #+ (f_p-f_q)
                 N_p += 1.0
             if(fill_mask[j, i + 1]): #right neighbor exists
-                f_q = src[j, i+1, :].astype('float')
-                g_q = tar[j, i+1, :].astype('float')
+                f_q = tar[j, i+1, :].astype('float')
+                g_q = src[j, i+1, :].astype('float')
                 if(blending_mask[j, i+1]): # in the omega
                     v_pq += [alpha, 1-alpha]@np.array([(f_p-f_q), (g_p-g_q)])
                     A[cur_ptr, loc_map[(j, i+1)]] = -1.0
                 else: # on the boundary
-                    v_pq +=tar[j, i+1, :].astype('float') + (g_p-g_q)
+                    v_pq +=tar[j, i+1, :].astype('float') #+ (f_p-f_q)
                 N_p += 1.0
             A[cur_ptr, cur_ptr] = N_p
             b[cur_ptr, :] = v_pq.astype('float')
