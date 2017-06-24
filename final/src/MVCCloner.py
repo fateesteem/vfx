@@ -103,17 +103,16 @@ class MVCCloner:
         elif k == 1: # DOWN
             print('DOWN')
         elif k == 2: # LEFT
-            self.zoom_patch(1./np.power(2, 1./5))
+            self.zoom_patch(1./np.power(1.5, 1./10))
         elif k == 3: # RIGHT
-            self.zoom_patch(np.power(2, 1./5))
+            self.zoom_patch(np.power(1.5, 1./10))
 
     def move_patch(self, x, y):
-        max_corner = [self.win_X, self.win_Y]
         displacement = [x, y] - self.anchor
         self.anchor = np.array([x, y], dtype='int32')
         future_lefttop = (self.lefttop + displacement).astype('int32')
         future_rightbottom = (self.rightbottom + displacement).astype('int32')
-        if np.any(future_lefttop < 0) or np.any(future_rightbottom + [1, 1] >= max_corner):
+        if self.exceed_window(future_lefttop, future_rightbottom):
             return
         self.set_patch_pos(displacement)
 
@@ -123,28 +122,48 @@ class MVCCloner:
         M = np.array([[    np.cos(rad), np.sin(rad)],
                       [-1.*np.sin(rad), np.cos(rad)]], dtype='float32')
         patch_center = (self.rightbottom + self.lefttop) / 2.
-        self.boundary = np.dot((self.boundary - patch_center), M) + patch_center
-        self.patch_pnts = np.dot((self.patch_pnts - patch_center), M) + patch_center
-        self.lefttop = np.min(self.boundary, axis=0)
-        self.rightbottom = np.max(self.boundary, axis=0)
-        self.theta = (self.theta + d) % 360
+        new_boundary = np.dot((self.boundary - patch_center), M) + patch_center
+        new_patch_pnts = np.dot((self.patch_pnts - patch_center), M) + patch_center
+        new_lefttop = np.min(new_boundary, axis=0)
+        new_rightbottom = np.max(new_boundary, axis=0)
+        if self.exceed_window(new_lefttop, new_rightbottom):
+            return
+        else:
+            self.boundary = new_boundary
+            self.patch_pnts = new_patch_pnts
+            self.lefttop = new_lefttop
+            self.rightbottom = new_rightbottom
+            self.theta = (self.theta + d) % 360
 
     def zoom_patch(self, ratio):
-        if 0.5 < self.ratio * ratio and self.ratio * ratio < 2.:
-            self.ratio *= ratio
+        if 0.5 < self.ratio * ratio and self.ratio * ratio < 1.5:
             patch_center = (self.rightbottom + self.lefttop) / 2.
-            self.boundary *=ratio
-            self.patch_pnts *= ratio
-            self.lefttop *= ratio
-            self.rightbottom *= ratio
-            new_patch_center = (self.rightbottom + self.lefttop) / 2.
-            self.set_patch_pos(patch_center - new_patch_center)
+            new_lefttop = self.lefttop * ratio
+            new_rightbottom = self.rightbottom * ratio
+            new_patch_center = (new_rightbottom + new_lefttop) / 2.
+            displacement = patch_center - new_patch_center
+            if self.exceed_window((new_lefttop + displacement), (new_rightbottom + displacement)):
+                return
+            else:
+                self.lefttop *= ratio
+                self.rightbottom *= ratio
+                self.ratio *= ratio
+                self.boundary *=ratio
+                self.patch_pnts *= ratio
+                self.set_patch_pos(displacement)
 
     def set_patch_pos(self, displacement):
         self.boundary += displacement
         self.patch_pnts += displacement
         self.lefttop += displacement
         self.rightbottom += displacement
+
+    def exceed_window(self, lefttop, rightbottom):
+        max_corner = [self.win_X, self.win_Y]
+        if np.any(lefttop < 0) or np.any(rightbottom + [1, 1] >= max_corner):
+            return True
+        else:
+            return False
 
     def reset(self):
         screen_center = np.array([self.win_X >> 1 , self.win_Y >> 1], dtype='int32')
