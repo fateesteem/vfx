@@ -1,3 +1,12 @@
+import sys
+sys.path.append('/usr/local/lib/python2.7/site-packages')
+
+from Tkinter import *
+from PIL import Image
+from PIL import ImageTk
+import tkFileDialog
+import cv2
+
 import os
 import time
 from itertools import product
@@ -5,15 +14,7 @@ import numpy as np
 import cv2
 from GetPatchInterface import GetPatchInterface 
 from  preprocess import MVCSolver, GetAdaptiveMesh, CalcBCCoordinates
-from poisson_blending import PoissonBlendingInterface
-
-
-def load_img(path):
-    img = cv2.imread(path)
-    if img is None:
-        raise Exception("Failed to load the image from "+path)
-    return img
-
+#from poisson_blending import PoissonBlendingInterface
 
 class MVCCloner:
     def __init__(self, src_img_path, target_img_path, output_path, mvc_config):
@@ -197,8 +198,7 @@ class MVCCloner:
                 self.reset()
             elif k == ord('s'):
                 cv2.imwrite(self.output_path, img)
-                poisson_output = PoissonBlendingInterface(self.target_img.copy(), self.boundary, 
-                                        self.boundary_values, self.patch_pnts, self.patch_values)
+                #poisson_output = PoissonBlendingInterface(self.target_img.copy(), self.boundary,                        self.boundary_values, self.patch_pnts, self.patch_values)
                 cv2.imwrite('Poisson_output.png', poisson_output)
             elif k == 13 or k == 27:   # enter or esc
                 print("Clone time:", np.mean(clone_time))
@@ -236,6 +236,21 @@ class MVCCloner:
         #img[patch_pnts_int[:, 1], patch_pnts_int[:, 0], :] = set_values
 
 
+def load_img(path):
+    img = cv2.imread(path)
+    if img is None:
+        raise Exception("Failed to load the image from "+path)
+    return img
+
+def select_image():
+    path1 = tkFileDialog.askopenfilename(title='Please select a src to analyze')
+    path2 = tkFileDialog.askopenfilename(title='Please select a target to analyze')
+    if len(path1) > 0:
+        mvc_cloner = MVCCloner(path1, path2, './out.jpg', mvc_config)
+        mvc_cloner.GetPatch()
+        mvc_cloner.GetPatch()
+
+
 
 if __name__ == "__main__":
     mvc_config = {'hierarchic': True,
@@ -245,11 +260,19 @@ if __name__ == "__main__":
                   'adaptiveMeshShapeCriteria': 0.125,
                   'adaptiveMeshSizeCriteria': 0.,
                   'min_h_res': 16.}
-    src_img_path = './source.jpg'
-    target_img_path = './target.jpg'
-    output_path = './out.jpg'
+    #src_img_path = './source.jpg'
+    #target_img_path = './target.jpg'
+    #output_path = './out.jpg'
 
-    mvc_cloner = MVCCloner(src_img_path, target_img_path, output_path, mvc_config)
-    mvc_cloner.GetPatch()
-    mvc_cloner.run()
+    root = Tk()
+    panelA = None
+    panelB = None
+
+    btn = Button(root, text="Select an image", command=select_image)
+    btn.pack(side="bottom", fill="both", expand="yes", padx="10", pady="10")
+
+    root.mainloop()
+    #mvc_cloner = MVCCloner(src_img_path, target_img_path, output_path, mvc_config)
+    #mvc_cloner.GetPatch()
+    #mvc_cloner.run()
 
