@@ -101,17 +101,21 @@ class MVCCloner_removal:
 
     def keyboard_on_patch(self, k):
         if k == ord('>'):
-            self.rotate_patch(10.)
+            #self.rotate_patch(10.)
+            pass
         elif k == ord('<'):
-            self.rotate_patch(-10.)
+            #self.rotate_patch(-10.)
+            pass
         elif k == 0: # UP
             print('UP')
         elif k == 1: # DOWN
             print('DOWN')
         elif k == 2: # LEFT
-            self.zoom_patch(1./np.power(2, 1./5))
+            #self.zoom_patch(1./np.power(2, 1./5))
+            pass
         elif k == 3: # RIGHT
-            self.zoom_patch(np.power(2, 1./5))
+            #self.zoom_patch(np.power(2, 1./5))
+            pass
 
     def move_patch(self, x, y):
         max_corner = [self.win_X, self.win_Y]
@@ -179,7 +183,8 @@ class MVCCloner_removal:
             start_t = time.time()
             self.patch_img(img, clone_values)
             patch_time.append(time.time() - start_t)
-            cv2.imshow('MVCCloner', img)
+            disp_img = self.draw_boundary(img)
+            cv2.imshow('MVCCloner', disp_img)
             k = cv2.waitKey(5) & 0xFF
             if k == 32:     # space
                 self.reset()
@@ -187,7 +192,7 @@ class MVCCloner_removal:
                 cv2.imwrite(self.output_path, img)
                 #poisson_output = PoissonBlendingInterface(self.target_img.copy(), self.boundary, 
                 #                        self.boundary_values, self.patch_pnts, self.patch_values)
-                cv2.imwrite('Poisson_output.png', poisson_output)
+                #cv2.imwrite('Poisson_output.png', poisson_output)
             elif k == 13 or k == 27:   # enter or esc
                 print("Clone time:", np.mean(clone_time))
                 print("Patch time:", np.mean(patch_time))
@@ -195,6 +200,12 @@ class MVCCloner_removal:
             else:
                 self.keyboard_on_patch(k)
         cv2.destroyAllWindows()
+
+    def draw_boundary(self, img):
+        disp_img = img.copy()
+        boundary = self.boundary.astype('int32')
+        cv2.drawContours(disp_img, [boundary], 0, (0, 255, 0), 2)
+        return disp_img
 
     def CalcCloningValues(self):
         patch_pnts_int = self.patch_pnts.astype('int32')

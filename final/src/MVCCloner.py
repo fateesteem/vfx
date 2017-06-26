@@ -1,8 +1,5 @@
-import sys
-sys.path.append('/usr/local/lib/python2.7/site-packages')
-
-from Tkinter import *
-import tkFileDialog
+from tkinter import *
+from tkinter import filedialog as tkFileDialog
 import cv2
 
 import os
@@ -12,7 +9,7 @@ import numpy as np
 import cv2
 from GetPatchInterface import GetPatchInterface 
 from  preprocess import MVCSolver, GetAdaptiveMesh, CalcBCCoordinates
-#from poisson_blending import PoissonBlendingInterface
+from poisson_blending import PoissonBlendingInterface
 
 class MVCCloner:
     def __init__(self, src_img_path, target_img_path, output_path, mvc_config):
@@ -196,7 +193,7 @@ class MVCCloner:
                 self.reset()
             elif k == ord('s'):
                 cv2.imwrite(self.output_path, img)
-                #poisson_output = PoissonBlendingInterface(self.target_img.copy(), self.boundary,                        self.boundary_values, self.patch_pnts, self.patch_values)
+                poisson_output = PoissonBlendingInterface(self.target_img.copy(), self.boundary, self.boundary_values, self.patch_pnts, self.patch_values)
                 cv2.imwrite('Poisson_output.png', poisson_output)
             elif k == 13 or k == 27:   # enter or esc
                 print("Clone time:", np.mean(clone_time))

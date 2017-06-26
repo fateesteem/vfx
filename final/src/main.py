@@ -1,11 +1,9 @@
-import sys
-sys.path.append('/usr/local/lib/python2.7/site-packages')
+import matplotlib
+matplotlib.use('TkAgg')
+from tkinter import *
 
-from Tkinter import *
-
-import tkMessageBox
-
-import tkFileDialog
+from tkinter import messagebox as tkMessageBox
+from tkinter import filedialog as tkFileDialog
 import cv2
 
 from MVCCloner import MVCCloner
@@ -60,11 +58,11 @@ def compute_image_cloning(varrs):
 
 def runSelectedItems(varrs):
 
-    print len(varrs)
+    print(len(varrs))
 
     for idx, i in enumerate(varrs):
       if i.get() == 1:
-        print idx
+        print(idx)
     #if checkCmd == 0:
     #    labelText = Label(text="It worked").pack()
     #else:
