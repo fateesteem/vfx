@@ -3,10 +3,15 @@ sys.path.append('/usr/local/lib/python2.7/site-packages')
 
 from Tkinter import *
 
+import tkMessageBox
+
 import tkFileDialog
 import cv2
 
 from MVCCloner import MVCCloner
+from MVCCloner_removal import MVCCloner_removal
+
+varrs = []
 
 def select_source_image(A):
 
@@ -24,7 +29,7 @@ def select_target_image(AA):
       AA.select()
     
 
-def compute_image_cloning():
+def compute_image_cloning(varrs):
     mvc_config = {'hierarchic': True,
                 'base_angle_Th': 0.75,
                 'base_angle_exp': 0.8,
@@ -34,10 +39,37 @@ def compute_image_cloning():
                 'min_h_res': 16.}
 
    
-    if len(src_img_path) > 0 and len(target_img_path) > 0:
-        mvc_cloner = MVCCloner(src_img_path, target_img_path, './out.jpg', mvc_config)
-        mvc_cloner.GetPatch()
-        mvc_cloner.run()
+    if src_img_path and target_img_path:
+
+        if not varrs[0].get() and not varrs[1].get():
+          tkMessageBox.showinfo('Input Error','Please select Cloning Type')
+        else:
+          if varrs[0].get():
+            mvc_cloner = MVCCloner(src_img_path, target_img_path, './out.jpg', mvc_config)
+            mvc_cloner.GetPatch()
+            mvc_cloner.run()
+          if varrs[1].get():
+            mvc_cloner = MVCCloner_removal(src_img_path, src_img_path, './out_removal.jpg', mvc_config)
+            mvc_cloner.GetPatch()
+            mvc_cloner.run()
+    else:
+      tkMessageBox.showinfo('Input Error','Please select input images')
+      
+      #tkMessageBox.askyesno("Title", "Your question goes here?")
+
+
+def runSelectedItems(varrs):
+
+    print len(varrs)
+
+    for idx, i in enumerate(varrs):
+      if i.get() == 1:
+        print idx
+    #if checkCmd == 0:
+    #    labelText = Label(text="It worked").pack()
+    #else:
+    #    labelText = Label(text="Please select an item from the checklist below").pack()
+
 
 
 if __name__ == '__main__':
@@ -62,10 +94,10 @@ if __name__ == '__main__':
     panelB = None
 
     var = IntVar()
-    A = Checkbutton(root, text="Done", variable=var)
+    A = Checkbutton(root, text="Src Done", variable=var)
 
     var2 = IntVar()
-    AA = Checkbutton(root, text="Done", variable=var2)
+    AA = Checkbutton(root, text="Target Done", variable=var2)
 
     btn = Button(root, text="Select source image", command= lambda: select_source_image(A),height =2, width = 30)
 
@@ -77,11 +109,18 @@ if __name__ == '__main__':
     btn2.pack()
     AA.pack()
 
-    btn3 = Button(root, text="Compute Image Cloning",command=compute_image_cloning, height = 2, width = 30)
+    btn3 = Button(root, text="Compute Image Cloning",command=lambda: compute_image_cloning(varrs),  width = 30)
     btn3.pack()
 
-    root.mainloop()
+    picks = ["MVC Blending","Object Removal","Poisson Blending", "Slective Edge"]
+    for pick in picks:
+        var = IntVar()
+        chk = Checkbutton(root, text=pick, variable=var)
+        chk.pack(side=LEFT, anchor=W, expand=YES)
+        varrs.append(var)
 
-    #mvc_cloner = MVCCloner(src_img_path, target_img_path, output_path, mvc_config)
-    #mvc_cloner.GetPatch()
-    #mvc_cloner.run()
+    #for i in varrs:
+    #  i.pack(side=LEFT, anchor=W, expand=YES)
+
+
+    root.mainloop()

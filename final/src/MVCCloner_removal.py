@@ -5,7 +5,7 @@ import numpy as np
 import cv2
 from GetPatchInterface import GetPatchInterface 
 from  preprocess import MVCSolver, GetAdaptiveMesh, CalcBCCoordinates
-from poisson_blending import PoissonBlendingInterface
+#from poisson_blending import PoissonBlendingInterface
 
 
 def load_img(path):
@@ -15,7 +15,7 @@ def load_img(path):
     return img
 
 
-class MVCCloner:
+class MVCCloner_removal:
     def __init__(self, src_img_path, target_img_path, output_path, mvc_config):
         self.src_img = load_img(src_img_path)
         self.target_img = load_img(src_img_path)
@@ -129,8 +129,8 @@ class MVCCloner:
         M = np.array([[    np.cos(rad), np.sin(rad)],
                       [-1.*np.sin(rad), np.cos(rad)]], dtype='float32')
         patch_center = (self.rightbottom + self.lefttop) / 2.
-        self.boundary = (self.boundary - patch_center) @ M + patch_center
-        self.patch_pnts = (self.patch_pnts - patch_center) @ M + patch_center
+        self.boundary = np.dot( (self.boundary - patch_center) , M) + patch_center
+        self.patch_pnts = np.dot( (self.patch_pnts - patch_center) , M) + patch_center
         self.lefttop = np.min(self.boundary, axis=0)
         self.rightbottom = np.max(self.boundary, axis=0)
         self.theta = (self.theta + d) % 360
@@ -185,8 +185,8 @@ class MVCCloner:
                 self.reset()
             elif k == ord('s'):
                 cv2.imwrite(self.output_path, img)
-                poisson_output = PoissonBlendingInterface(self.target_img.copy(), self.boundary, 
-                                        self.boundary_values, self.patch_pnts, self.patch_values)
+                #poisson_output = PoissonBlendingInterface(self.target_img.copy(), self.boundary, 
+                #                        self.boundary_values, self.patch_pnts, self.patch_values)
                 cv2.imwrite('Poisson_output.png', poisson_output)
             elif k == 13 or k == 27:   # enter or esc
                 print("Clone time:", np.mean(clone_time))
@@ -202,7 +202,7 @@ class MVCCloner:
         boundary_int = self.boundary.astype('int32')
         self.boundary_values = self.target_img[boundary_int[:, 1], boundary_int[:, 0], :].astype('float32')
         diffs = self.target_boundary_values - self.boundary_values
-        interpolants = self.MVCoords @ diffs
+        interpolants = np.dot( self.MVCoords , diffs)
         self.mesh_diffs[:self.num_boundary, :] = diffs
         self.mesh_diffs[self.num_boundary:, :] = interpolants
         BCinterps = self.mesh_diffs[self.triangles_vertices]
@@ -239,7 +239,7 @@ if __name__ == "__main__":
     target_img_path = './target.jpg'
     output_path = './out.jpg'
 
-    mvc_cloner = MVCCloner(src_img_path, target_img_path, output_path, mvc_config)
+    mvc_cloner = MVCCloner_removal(src_img_path, target_img_path, output_path, mvc_config)
     mvc_cloner.GetPatch()
     mvc_cloner.run()
 
