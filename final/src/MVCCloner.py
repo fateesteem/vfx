@@ -2,8 +2,6 @@ import sys
 sys.path.append('/usr/local/lib/python2.7/site-packages')
 
 from Tkinter import *
-from PIL import Image
-from PIL import ImageTk
 import tkFileDialog
 import cv2
 
