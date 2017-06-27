@@ -47,15 +47,17 @@ def compute_image_cloning(varrs):
 
     global target_img_path
     global src_img_path
+    global loop_count
+    global hold_target
+    global check
+
     if src_img_path and target_img_path:
 
         if not varrs[0].get() and not varrs[1].get():
           tkMessageBox.showinfo('Input Error','Please select Cloning Type')
         else:
           if varrs[0].get():
-            global loop_count
-            global hold_target
-            global check
+          
             if loop_count != 0 and check:
                 target_img_path = './out.jpg'              
             mvc_cloner = MVCCloner(src_img_path, target_img_path, './out.jpg', mvc_config,varrs[3].get())
@@ -66,10 +68,7 @@ def compute_image_cloning(varrs):
 
             hold_target = target_img_path
           if varrs[1].get():
-            global loop_count
-            global hold_target
-            global check
-
+           
             if loop_count != 0 and check:
                 src_img_path = './out.jpg'
                 target_img_path = './out.jpg'
