@@ -1,10 +1,10 @@
 import matplotlib
 matplotlib.use('TkAgg')
-from tkinter import *
-#import tkMessageBox
-#import tkFileDialog
-from tkinter import messagebox as tkMessageBox
-from tkinter import filedialog as tkFileDialog
+from Tkinter import *
+import tkMessageBox
+import tkFileDialog
+#from tkinter import messagebox as tkMessageBox
+#from tkinter import filedialog as tkFileDialog
 import cv2
 
 from MVCCloner import MVCCloner
@@ -13,6 +13,10 @@ from MVCCloner_removal import MVCCloner_removal
 varrs = []
 
 loop_count = 0
+
+hold_target = None
+
+check = 1
 
 def select_source_image(A):
 
@@ -26,6 +30,8 @@ def select_target_image(AA):
    
     global target_img_path
     target_img_path = tkFileDialog.askopenfilename(title='Please select a target to analyze',filetypes=[('Jpg files','*.jpg'), ('Jpeg file','*.jpeg'), ('Png file', '*.png')])
+    global check
+    check = 0
     if len(target_img_path)>0:
       AA.select()
     
@@ -40,6 +46,7 @@ def compute_image_cloning(varrs):
                 'min_h_res': 16.}
 
     global target_img_path
+    global src_img_path
     if src_img_path and target_img_path:
 
         if not varrs[0].get() and not varrs[1].get():
@@ -47,16 +54,30 @@ def compute_image_cloning(varrs):
         else:
           if varrs[0].get():
             global loop_count
-            if loop_count != 0:
-                target_img_path = './out.jpg'
+            global hold_target
+            global check
+            if loop_count != 0 and check:
+                target_img_path = './out.jpg'              
             mvc_cloner = MVCCloner(src_img_path, target_img_path, './out.jpg', mvc_config,varrs[3].get())
             mvc_cloner.GetPatch()
             mvc_cloner.run()
             loop_count = loop_count + 1
+            check = 1
+
+            hold_target = target_img_path
           if varrs[1].get():
+            global loop_count
+            global hold_target
+            global check
+
+            if loop_count != 0 and check:
+                src_img_path = './out.jpg'
+                target_img_path = './out.jpg'
             mvc_cloner = MVCCloner_removal(src_img_path, src_img_path, './out_removal.jpg', mvc_config,varrs[3].get())
             mvc_cloner.GetPatch()
             mvc_cloner.run()
+            loop_count = loop_count + 1
+            check = 1
     else:
       tkMessageBox.showinfo('Input Error','Please select input images')
       

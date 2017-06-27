@@ -216,6 +216,8 @@ class GCManager:
         counter =0
         sc =1
 
+        check = 0
+
         while True:
             cv2.imshow('input', self.img)
             cv2.imshow('output', output)
@@ -227,21 +229,26 @@ class GCManager:
                 self.DRAW = None
                 cv2.drawContours(self._mask, [sample_boundary], 0, self.GC_PR_FG, -1)
                 self.img = self.src_img.copy()
-            elif self.grab==1 and counter >=20 and sc==1:
+            elif (self.grab==1 and counter >=20 and sc==1) or k==ord('h'):
                 
                 print('initialize ...')
-                if sc==1:
+                if sc==1 or check==1:
                     self.DRAW = None
                     self.run()
                     sc = sc+1
+                    check = 0
 
             ## interactive drawing ##
             elif k == ord('0'):
                 print('labeling true background(BG)...')
                 self.DRAW = self._DRAW_BG
+                check = 1
+                
             elif k == ord('1'):
                 print('labeling true foreground(FG)...')
                 self.DRAW = self._DRAW_FG
+                check = 1
+            
 
             
             mask = np.where((self._mask == self.GC_FG) + (self._mask == self.GC_PR_FG)
