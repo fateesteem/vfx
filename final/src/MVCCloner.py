@@ -1,8 +1,3 @@
-from Tkinter import *
-import tkFileDialog
-#from tkinter import filedialog as tkFileDialog
-import cv2
-
 import os
 import time
 from itertools import product

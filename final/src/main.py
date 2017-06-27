@@ -1,10 +1,10 @@
 import matplotlib
 matplotlib.use('TkAgg')
-from Tkinter import *
-import tkMessageBox
-import tkFileDialog
-#from tkinter import messagebox as tkMessageBox
-#from tkinter import filedialog as tkFileDialog
+from tkinter import *
+#import tkMessageBox
+#import tkFileDialog
+from tkinter import messagebox as tkMessageBox
+from tkinter import filedialog as tkFileDialog
 import cv2
 
 from MVCCloner import MVCCloner
