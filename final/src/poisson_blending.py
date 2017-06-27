@@ -42,19 +42,19 @@ def PoissonBlending(src, tar, mask):
     print('solving...N: {}'.format(N))
     stride = x_max - x_min + 1
     A = scipy.sparse.identity(N, format='lil')
-    b = np.zeros((N, 3), dtype='float')
+    b = np.zeros((N, 3), dtype=np.float32)
     for (j, i) in zip(loc[0], loc[1]):
         alpha = 0.0 #w_l[j, i]
         cur_ptr = loc_map[(j, i)]
         if(blending_mask[j, i]):
             N_p = 0.0
-            v_pq = np.zeros((1,3), dtype='float')
-            f_p = tar[j, i, :].astype('float')
-            g_p = src[j, i, :].astype('float')
+            v_pq = np.zeros((1,3), dtype=np.float32)
+            f_p = tar[j, i, :].astype(np.float32)
+            g_p = src[j, i, :].astype(np.float32)
             if(j > 0):
                 if(fill_mask[j - 1, i]): #upper neighbor exists
-                    f_q = tar[j-1, i, :].astype('float')
-                    g_q = src[j-1, i, :].astype('float')
+                    f_q = tar[j-1, i, :].astype(np.float32)
+                    g_q = src[j-1, i, :].astype(np.float32)
                     if(blending_mask[j - 1, i]): # in the omega
                         v_pq += np.dot([alpha, 1-alpha], np.array([(f_p-f_q), (g_p-g_q)]))
                         A[cur_ptr, loc_map[(j-1, i)]] = -1.0
@@ -62,38 +62,38 @@ def PoissonBlending(src, tar, mask):
                         # known function f*_p + v_pq
                         # here we choose gradient image of original image with its
                         # pixel value exists.
-                        v_pq += tar[j-1, i, :].astype('float') #+ (f_p-f_q) 
+                        v_pq += tar[j-1, i, :].astype(np.float32) #+ (f_p-f_q) 
                     N_p += 1.0
             if(j < H - 1):
                 if(fill_mask[j + 1, i]): #lower neighbor exists
-                    f_q = tar[j+1, i, :].astype('float')
-                    g_q = src[j+1, i, :].astype('float')
+                    f_q = tar[j+1, i, :].astype(np.float32)
+                    g_q = src[j+1, i, :].astype(np.float32)
                     if(blending_mask[j + 1, i]): # in the omega
                         v_pq +=  np.dot([alpha, 1-alpha], np.array([(f_p-f_q), (g_p-g_q)]))
                         A[cur_ptr, loc_map[(j+1, i)]] = -1.0
                     else: # on the boundary
-                        v_pq +=tar[j+1, i, :].astype('float') #+ (f_p-f_q)
+                        v_pq +=tar[j+1, i, :].astype(np.float32) #+ (f_p-f_q)
                     N_p += 1.0
             if(fill_mask[j, i - 1]): #left neighbor exists
-                f_q = tar[j, i-1, :].astype('float')
-                g_q = src[j, i-1, :].astype('float')
+                f_q = tar[j, i-1, :].astype(np.float32)
+                g_q = src[j, i-1, :].astype(np.float32)
                 if(blending_mask[j, i-1]): # in the omega
                     v_pq += np.dot([alpha, 1-alpha], np.array([(f_p-f_q), (g_p-g_q)]))
                     A[cur_ptr, loc_map[(j, i-1)]] = -1.0
                 else: # on the boundary
-                    v_pq +=tar[j, i-1, :].astype('float') #+ (f_p-f_q)
+                    v_pq +=tar[j, i-1, :].astype(np.float32) #+ (f_p-f_q)
                 N_p += 1.0
             if(fill_mask[j, i + 1]): #right neighbor exists
-                f_q = tar[j, i+1, :].astype('float')
-                g_q = src[j, i+1, :].astype('float')
+                f_q = tar[j, i+1, :].astype(np.float32)
+                g_q = src[j, i+1, :].astype(np.float32)
                 if(blending_mask[j, i+1]): # in the omega
                     v_pq += np.dot([alpha, 1-alpha], np.array([(f_p-f_q), (g_p-g_q)]))
                     A[cur_ptr, loc_map[(j, i+1)]] = -1.0
                 else: # on the boundary
-                    v_pq +=tar[j, i+1, :].astype('float') #+ (f_p-f_q)
+                    v_pq +=tar[j, i+1, :].astype(np.float32) #+ (f_p-f_q)
                 N_p += 1.0
             A[cur_ptr, cur_ptr] = N_p
-            b[cur_ptr, :] = v_pq.astype('float')
+            b[cur_ptr, :] = v_pq.astype(np.float32)
         else: # not in blending region
             raise Exception('Illegal image!!')
     gc.collect()
@@ -145,8 +145,8 @@ if __name__ == '__main__':
         if warp and k == ord('n'):
             
             print(ix, iy)
-            cur_src = cv2.warpAffine(new_src.copy(), np.array([[1, 0, ix], [0, 1, iy]], dtype=np.float32), (new_src.shape[::-1][1:]))
-            cur_mask = cv2.warpAffine(new_mask.copy(), np.array([[1, 0, ix], [0, 1, iy]], dtype=np.float32), (new_src.shape[::-1][1:]))
+            cur_src = cv2.warpAffine(new_src.copy(), np.array([[1, 0, ix], [0, 1, iy]], dtype=np.np.float3232), (new_src.shape[::-1][1:]))
+            cur_mask = cv2.warpAffine(new_mask.copy(), np.array([[1, 0, ix], [0, 1, iy]], dtype=np.np.float3232), (new_src.shape[::-1][1:]))
             cur_mask = (cur_mask / 255).astype(bool)
             output =  PoissonBlending(cur_src, tar, cur_mask[:, :, 0])
             warp = False

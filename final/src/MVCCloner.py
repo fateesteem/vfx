@@ -1,5 +1,6 @@
-from tkinter import *
-from tkinter import filedialog as tkFileDialog
+from Tkinter import *
+import tkFileDialog
+#from tkinter import filedialog as tkFileDialog
 import cv2
 
 import os
@@ -12,11 +13,11 @@ from  preprocess import MVCSolver, GetAdaptiveMesh, CalcBCCoordinates
 from poisson_blending import PoissonBlendingInterface
 
 class MVCCloner:
-    def __init__(self, src_img_path, target_img_path, output_path, mvc_config):
+    def __init__(self, src_img_path, target_img_path, output_path, mvc_config,grab):
         self.src_img = load_img(src_img_path)
         self.target_img = load_img(target_img_path)
         self.output_path = output_path
-        self.GetPatchUI = GetPatchInterface(self.src_img)
+        self.GetPatchUI = GetPatchInterface(self.src_img,grab)
         self.mvc_solver = MVCSolver(mvc_config)
         # source patch attributes #
         self.lefttop = None
@@ -43,7 +44,7 @@ class MVCCloner:
         # get source patch from UI #
         self.GetPatchUI.run()
         start_t = time.time()
-        self.boundary, self.boundary_values, self.patch_pnts, self.patch_values = self.GetPatchUI.GetPatch(sample_step=2)
+        self.boundary, self.boundary_values, self.patch_pnts, self.patch_values = self.GetPatchUI.GetPatch(sample_step=4)
         self.boundary = self.boundary.astype('float32')
         self.patch_pnts = self.patch_pnts.astype('float32')
         self.lefttop = np.min(self.boundary, axis=0)

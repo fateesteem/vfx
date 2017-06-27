@@ -5,7 +5,7 @@ import time
 import maxflow 
 
 class GCManager:
-    def __init__(self, src_img):
+    def __init__(self, src_img,grab):
         self.src_img = src_img
         self.img = src_img.copy()
         self.row, self.col = src_img.shape[:2]
@@ -40,6 +40,8 @@ class GCManager:
 
         self._mask = np.zeros(self.img.shape[:2], dtype='uint8')
         self._mask[:, :] = self.GC_BG
+
+        self.grab = grab
 
     def calcBeta(self):
         self._h_diff = self.src_img[:, 1:] - self.src_img[:, :-1]
@@ -211,10 +213,13 @@ class GCManager:
         cv2.moveWindow('input',self.img.shape[1]+10,90)
 
         output = np.zeros_like(self.img)
+        counter =0
+        sc =1
+
         while True:
             cv2.imshow('input', self.img)
             cv2.imshow('output', output)
-
+            counter = counter + 1
             k = cv2.waitKey(1) & 0xFF
             if k == ord('q') or k == 13:
                 break
@@ -222,10 +227,14 @@ class GCManager:
                 self.DRAW = None
                 cv2.drawContours(self._mask, [sample_boundary], 0, self.GC_PR_FG, -1)
                 self.img = self.src_img.copy()
-            elif k == ord('n'):
-                self.DRAW = None
+            elif self.grab==1 and counter >=20 and sc==1:
+                
                 print('initialize ...')
-                self.run()
+                if sc==1:
+                    self.DRAW = None
+                    self.run()
+                    sc = sc+1
+
             ## interactive drawing ##
             elif k == ord('0'):
                 print('labeling true background(BG)...')

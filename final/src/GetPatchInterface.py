@@ -23,7 +23,7 @@ def GetPatchPnts(boundary, mask):
 
 
 class GetPatchInterface:
-    def __init__(self, src_img=None):
+    def __init__(self, src_img=None,grab=None):
         if src_img is None:
             self.src_img = np.zeros((512, 512, 3), np.uint8)
         else:
@@ -33,7 +33,9 @@ class GetPatchInterface:
         self.boundary = np.empty([0, 2], dtype='int32')
         self.track = np.empty([0, 2], dtype='int32')
         self.first_idx = 0
-        self.grabCut = GCManager(src_img.copy())
+        self.grab = grab
+        self.grabCut = GCManager(src_img.copy(),self.grab)
+        
 
     # mouse callback function
     def draw_boundary(self, event, x, y, flags, param):

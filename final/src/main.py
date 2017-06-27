@@ -1,9 +1,13 @@
+import sys
+sys.path.append('/usr/local/lib/python2.7/site-packages')
+
 import matplotlib
 matplotlib.use('TkAgg')
-from tkinter import *
-
-from tkinter import messagebox as tkMessageBox
-from tkinter import filedialog as tkFileDialog
+from Tkinter import *
+import tkMessageBox
+import tkFileDialog
+#from tkinter import messagebox as tkMessageBox
+#from tkinter import filedialog as tkFileDialog
 import cv2
 
 from MVCCloner import MVCCloner
@@ -43,7 +47,7 @@ def compute_image_cloning(varrs):
           tkMessageBox.showinfo('Input Error','Please select Cloning Type')
         else:
           if varrs[0].get():
-            mvc_cloner = MVCCloner(src_img_path, target_img_path, './out.jpg', mvc_config)
+            mvc_cloner = MVCCloner(src_img_path, target_img_path, './out.jpg', mvc_config,varrs[3].get())
             mvc_cloner.GetPatch()
             mvc_cloner.run()
           if varrs[1].get():
@@ -110,12 +114,13 @@ if __name__ == '__main__':
     btn3 = Button(root, text="Compute Image Cloning",command=lambda: compute_image_cloning(varrs),  width = 30)
     btn3.pack()
 
-    picks = ["MVC Blending","Object Removal","Poisson Blending", "Slective Edge"]
+    picks = ["MVC Blending","Object Removal","Poisson Blending", "Selective Edge"]
     for pick in picks:
         var = IntVar()
         chk = Checkbutton(root, text=pick, variable=var)
-        chk.pack(side=LEFT, anchor=W, expand=YES)
+        chk.pack(side = LEFT,anchor=W, expand=YES)
         varrs.append(var)
+    
 
     #for i in varrs:
     #  i.pack(side=LEFT, anchor=W, expand=YES)
