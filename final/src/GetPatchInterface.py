@@ -119,7 +119,7 @@ class GetPatchInterface:
                     # remove duplicate points #
                     self.boundary = unique_row(self.boundary)
                     break
-        cv2.destroyAllWindows()
+        cv2.destroyWindow('GetPatch')
         self.boundary = self.grabCut.interactive_session(self.boundary)
 
     def GetPatch(self, sample_step=2):

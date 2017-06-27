@@ -1,13 +1,10 @@
-import sys
-sys.path.append('/usr/local/lib/python2.7/site-packages')
-
 import matplotlib
 matplotlib.use('TkAgg')
-from Tkinter import *
-import tkMessageBox
-import tkFileDialog
-#from tkinter import messagebox as tkMessageBox
-#from tkinter import filedialog as tkFileDialog
+from tkinter import *
+#import tkMessageBox
+#import tkFileDialog
+from tkinter import messagebox as tkMessageBox
+from tkinter import filedialog as tkFileDialog
 import cv2
 
 from MVCCloner import MVCCloner
@@ -126,7 +123,7 @@ if __name__ == '__main__':
         chk = Checkbutton(root, text=pick, variable=var)
         chk.pack(side = LEFT,anchor=W, expand=YES)
         varrs.append(var)
-    
+    cv2.destroyAllWindows()    
 
     #for i in varrs:
     #  i.pack(side=LEFT, anchor=W, expand=YES)

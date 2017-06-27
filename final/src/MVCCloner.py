@@ -1,6 +1,6 @@
-from Tkinter import *
-import tkFileDialog
-#from tkinter import filedialog as tkFileDialog
+from tkinter import *
+#import tkFileDialog
+from tkinter import filedialog as tkFileDialog
 import cv2
 
 import os
@@ -39,6 +39,11 @@ class MVCCloner:
         self.triangles_vertices = None
         self.mesh_diffs = None
         self.num_boundary = None
+        self.setup()
+
+    def setup(self):
+        cv2.namedWindow('MVCCloner')
+        cv2.imshow('MVCCloner', self.target_img)
 
     def GetPatch(self):
         # get source patch from UI #
@@ -203,7 +208,7 @@ class MVCCloner:
                 break
             else:
                 self.keyboard_on_patch(k)
-        cv2.destroyAllWindows()
+        #cv2.destroyAllWindows()
 
     def CalcCloningValues(self):
         boundary_int = self.boundary.astype('int32')
