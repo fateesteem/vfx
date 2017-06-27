@@ -191,13 +191,13 @@ class MVCCloner:
             cv2.imshow('MVCCloner', img)
             k = cv2.waitKey(5) & 0xFF
             if k == 32:     # space
-                cv2.imwrite(self.output_path, img)
                 self.reset()
             elif k == ord('s'):
                 cv2.imwrite(self.output_path, img)
                 poisson_output = PoissonBlendingInterface(self.target_img.copy(), self.boundary, self.boundary_values, self.patch_pnts, self.patch_values)
                 cv2.imwrite('Poisson_output.png', poisson_output)
             elif k == 13 or k == 27:   # enter or esc
+                cv2.imwrite(self.output_path, img)
                 print("Clone time:", np.mean(clone_time))
                 print("Patch time:", np.mean(patch_time))
                 break
