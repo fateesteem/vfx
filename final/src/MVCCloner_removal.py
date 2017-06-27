@@ -16,11 +16,11 @@ def load_img(path):
 
 
 class MVCCloner_removal:
-    def __init__(self, src_img_path, target_img_path, output_path, mvc_config):
+    def __init__(self, src_img_path, target_img_path, output_path, mvc_config,grab):
         self.src_img = load_img(src_img_path)
         self.target_img = load_img(src_img_path)
         self.output_path = output_path
-        self.GetPatchUI = GetPatchInterface(self.src_img)
+        self.GetPatchUI = GetPatchInterface(self.src_img,grab)
         self.mvc_solver = MVCSolver(mvc_config)
         # source patch attributes #
         self.lefttop = None

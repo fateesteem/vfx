@@ -15,6 +15,8 @@ from MVCCloner_removal import MVCCloner_removal
 
 varrs = []
 
+loop_count = 0
+
 def select_source_image(A):
 
     global src_img_path
@@ -40,18 +42,22 @@ def compute_image_cloning(varrs):
                 'adaptiveMeshSizeCriteria': 0.,
                 'min_h_res': 16.}
 
-   
+    global target_img_path
     if src_img_path and target_img_path:
 
         if not varrs[0].get() and not varrs[1].get():
           tkMessageBox.showinfo('Input Error','Please select Cloning Type')
         else:
           if varrs[0].get():
+            global loop_count
+            if loop_count != 0:
+                target_img_path = './out.jpg'
             mvc_cloner = MVCCloner(src_img_path, target_img_path, './out.jpg', mvc_config,varrs[3].get())
             mvc_cloner.GetPatch()
             mvc_cloner.run()
+            loop_count = loop_count + 1
           if varrs[1].get():
-            mvc_cloner = MVCCloner_removal(src_img_path, src_img_path, './out_removal.jpg', mvc_config)
+            mvc_cloner = MVCCloner_removal(src_img_path, src_img_path, './out_removal.jpg', mvc_config,varrs[3].get())
             mvc_cloner.GetPatch()
             mvc_cloner.run()
     else:

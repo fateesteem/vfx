@@ -191,6 +191,7 @@ class MVCCloner:
             cv2.imshow('MVCCloner', img)
             k = cv2.waitKey(5) & 0xFF
             if k == 32:     # space
+                cv2.imwrite(self.output_path, img)
                 self.reset()
             elif k == ord('s'):
                 cv2.imwrite(self.output_path, img)
